@@ -1,5 +1,5 @@
 // pages/result.jsx
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/router';
 import { Volume2, Globe, RefreshCw, CheckCircle, ChevronRight, Bug, Camera } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
@@ -8,6 +8,7 @@ import AppShell from '../components/layout/AppShell';
 import Button from '../components/ui/Button';
 import Badge from '../components/ui/Badge';
 import Toast from '../components/ui/Toast';
+import { getProgressUserId, recordQuestionSolved } from '../services/userProgress';
 
 const LANGUAGES = [
   { value: 'english', label: 'English', flag: '🇬🇧' },
@@ -35,6 +36,7 @@ export default function ResultPage() {
   const [showLangPicker, setShowLangPicker] = useState(false);
   const [toast, setToast] = useState(null);
   const [speaking, setSpeaking] = useState(false);
+  const fromScanRef = useRef(false);
 
   // --- Debug State ---
   const [logs, setLogs] = useState([]);
@@ -58,6 +60,10 @@ export default function ResultPage() {
       if (router.query.text) {
         setQuestion(router.query.text);
         addLog('Question state set from URL parameter.');
+
+        if (router.query.autoSolve === 'true') {
+          fromScanRef.current = true;
+        }
 
         // Auto-solve if it came directly from the scan page
         if (router.query.autoSolve === 'true') {
@@ -87,6 +93,20 @@ export default function ResultPage() {
       const data = await solveQuestion(textToSolve, langToUse);
       addLog('✅ Solve API Response:', data);
       setResult(data);
+      const pid = getProgressUserId(user);
+      if (pid) {
+        const fromScan = fromScanRef.current;
+        fromScanRef.current = false;
+        recordQuestionSolved(
+          pid,
+          {
+            subject: data.subject || 'general',
+            questionText: textToSolve,
+            fromScan,
+          },
+          user,
+        );
+      }
     } catch (e) {
       addLog('❌ Solve API Catch Error:', e.message);
       setToast({ message: '⚠️ Server not reachable. Start the backend.', type: 'error' });

@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useRouter } from 'next/router';
 import Link from 'next/link';
 import { useAuth } from '../hooks/useAuth';
@@ -7,6 +7,13 @@ import Avatar from '../components/ui/Avatar';
 import Button from '../components/ui/Button';
 import Spinner from '../components/ui/Spinner';
 import { LogOut, Settings, User, Bell, Shield, ChevronRight, Zap, Star, Award, GraduationCap, BookOpen, Users, Camera, Lock, Eye, EyeOff, Edit3, X, CheckCircle2, Phone, School, Target, BarChart3 } from 'lucide-react';
+import { useStudentProgress } from '../hooks/useStudentProgress';
+import {
+  getTeacherStudentSummaries,
+  findLinkedStudentForParent,
+  progressSnapshotForUserRecord,
+} from '../services/rosterProgress';
+import { accuracyPercent, badgesFromProgress } from '../services/userProgress';
 
 const CLASSES = ['1','2','3','4','5','6','7','8','9','10'];
 const LANGUAGES = [
@@ -24,6 +31,51 @@ export default function ProfilePage() {
   const { user, loading, logout, setManualUser } = useAuth();
   const router = useRouter();
   const fileInputRef = useRef(null);
+  const st = useStudentProgress(user);
+  const [extraStats, setExtraStats] = useState({
+    teacherStudentCount: 0,
+    teacherBankCount: 0,
+    parentChildAcc: null,
+    parentChildActs: 0,
+  });
+
+  const refreshExtra = useCallback(() => {
+    if (typeof window === 'undefined') return;
+    const students = getTeacherStudentSummaries();
+    let bankLen = 0;
+    try {
+      bankLen = JSON.parse(localStorage.getItem('ss_teacher_questions') || '[]').length;
+    } catch {
+      bankLen = 0;
+    }
+    const next = {
+      teacherStudentCount: students.length,
+      teacherBankCount: bankLen,
+      parentChildAcc: null,
+      parentChildActs: 0,
+    };
+    if (user?.role === 'parent') {
+      const l = findLinkedStudentForParent(user);
+      const cp = l ? progressSnapshotForUserRecord(l) : null;
+      const acc = cp ? accuracyPercent(cp) : null;
+      next.parentChildAcc = acc;
+      next.parentChildActs = (cp?.questionsSolved || 0) + (cp?.quizSessions || 0);
+    }
+    setExtraStats(next);
+  }, [user]);
+
+  useEffect(() => {
+    refreshExtra();
+  }, [refreshExtra]);
+
+  useEffect(() => {
+    window.addEventListener('focus', refreshExtra);
+    window.addEventListener('storage', refreshExtra);
+    return () => {
+      window.removeEventListener('focus', refreshExtra);
+      window.removeEventListener('storage', refreshExtra);
+    };
+  }, [refreshExtra]);
 
   const [isEditing, setIsEditing]       = useState(false);
   const [showPwForm, setShowPwForm]     = useState(false);
@@ -135,17 +187,39 @@ export default function ProfilePage() {
     }
   };
 
-  // Role-based stats
-  const statsConfig = role === 'teacher' ? [
-    { label: 'Students', value: 34, icon: Users, color: `text-indigo-500`, bg: 'bg-indigo-100' },
-    { label: 'Quizzes', value: 12, icon: BookOpen, color: 'text-purple-500', bg: 'bg-purple-100' },
-  ] : role === 'parent' ? [
-    { label: 'Child Score', value: 85, icon: Star, color: 'text-amber-500', bg: 'bg-amber-100' },
-    { label: 'Activities', value: 18, icon: BarChart3, color: 'text-orange-500', bg: 'bg-orange-100' },
-  ] : [
-    { label: 'Day Streak', value: 7, icon: Zap, color: 'text-amber-500', bg: 'bg-amber-100' },
-    { label: 'Total XP', value: '1,240', icon: Star, color: 'text-purple-500', bg: 'bg-purple-100' },
-  ];
+  const statsConfig =
+    role === 'teacher'
+      ? [
+          { label: 'Students', value: extraStats.teacherStudentCount, icon: Users, color: `text-indigo-500`, bg: 'bg-indigo-100' },
+          { label: 'Bank Qs', value: extraStats.teacherBankCount, icon: BookOpen, color: 'text-purple-500', bg: 'bg-purple-100' },
+        ]
+      : role === 'parent'
+        ? [
+            {
+              label: 'Child quiz avg',
+              value: extraStats.parentChildAcc != null ? `${extraStats.parentChildAcc}%` : '—',
+              icon: Star,
+              color: 'text-amber-500',
+              bg: 'bg-amber-100',
+            },
+            {
+              label: 'Child activity',
+              value: extraStats.parentChildActs,
+              icon: BarChart3,
+              color: 'text-orange-500',
+              bg: 'bg-orange-100',
+            },
+          ]
+        : [
+            { label: 'Day Streak', value: st.streak, icon: Zap, color: 'text-amber-500', bg: 'bg-amber-100' },
+            {
+              label: 'Total XP',
+              value: st.xp.toLocaleString(),
+              icon: Star,
+              color: 'text-purple-500',
+              bg: 'bg-purple-100',
+            },
+          ];
 
   return (
     <AppShell title="My Profile">
@@ -233,20 +307,22 @@ export default function ProfilePage() {
         {role === 'student' && (
           <div className="space-y-3 animate-fade-up" style={{ animationDelay: '150ms' }}>
             <h3 className="font-display font-800 text-slate-700 text-base px-1">Achievements</h3>
-            <div className="card p-5">
-              <div className="flex justify-between items-center mb-4">
-                <div className="flex items-center gap-3">
-                  <div className="bg-slate-100 p-2.5 rounded-2xl"><Award size={24} className="text-amber-500" /></div>
-                  <div>
-                    <h4 className="font-display font-800 text-slate-800">Early Bird</h4>
-                    <p className="text-xs font-600 text-slate-500 mt-0.5">Complete 5 morning quizzes</p>
+            <div className="card p-4 space-y-3">
+              {badgesFromProgress(st.progress).map((b) => (
+                <div
+                  key={b.title}
+                  className={`flex items-start gap-3 py-2 border-b border-slate-50 last:border-0 ${b.earned ? '' : 'opacity-45'}`}
+                >
+                  <div className="bg-slate-100 p-2 rounded-xl shrink-0">
+                    <Award size={20} className={b.earned ? 'text-amber-500' : 'text-slate-400'} />
                   </div>
+                  <div className="min-w-0 flex-1">
+                    <h4 className="font-display font-800 text-slate-800 text-sm">{b.title}</h4>
+                    <p className="text-xs font-600 text-slate-500 mt-0.5">{b.desc}</p>
+                  </div>
+                  {b.earned && <CheckCircle2 size={18} className="text-brand-500 shrink-0 mt-0.5" />}
                 </div>
-                <span className="text-sm font-800 text-brand-500">3/5</span>
-              </div>
-              <div className="progress-track h-2.5">
-                <div className="progress-fill bg-brand-500" style={{ width: '60%' }} />
-              </div>
+              ))}
             </div>
           </div>
         )}

@@ -7,6 +7,7 @@ import { sendChat } from '../services/api';
 import AppShell from '../components/layout/AppShell';
 import Avatar from '../components/ui/Avatar';
 import Toast from '../components/ui/Toast';
+import { getProgressUserId, recordChatTurn } from '../services/userProgress';
 
 const SUGGESTIONS = [
   'What is photosynthesis?',
@@ -64,6 +65,8 @@ export default function ChatPage() {
     try {
       const data = await sendChat(msg, user?.language || 'english');
       setMessages(m => [...m, { role: 'bot', text: formatBotText(data) }]);
+      const pid = getProgressUserId(user);
+      if (pid) recordChatTurn(pid, user);
     } catch {
       setMessages(m => [...m, { role: 'bot', text: 'Could not reach the server. Is the backend running?' }]);
     } finally {
