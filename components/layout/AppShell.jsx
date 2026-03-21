@@ -1,26 +1,32 @@
 // components/layout/AppShell.jsx
 import BottomNav from './BottomNav';
+import { useI18n } from '../../hooks/useI18n';
 
-export default function AppShell({ children, title, right, back, onBack }) {
+export default function AppShell({ children, title, right, back, onBack, left }) {
+  const { t } = useI18n();
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col max-w-md mx-auto">
       {/* Top bar */}
       {title && (
         <header className="sticky top-0 z-30 bg-white/95 backdrop-blur-md border-b border-slate-100 px-5 py-4 flex items-center gap-3">
-          {back && (
-            <button
-              onClick={onBack}
-              className="p-2 -ml-1 rounded-xl hover:bg-slate-100 transition-colors text-slate-500"
-            >
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
-                <path d="M15 18l-6-6 6-6"/>
-              </svg>
-            </button>
+          {left ? (
+            <div className="shrink-0 -ml-1">{left}</div>
+          ) : (
+            back && (
+              <button
+                onClick={onBack}
+                className="p-2 -ml-1 rounded-xl hover:bg-slate-100 transition-colors text-slate-500"
+              >
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+                  <path d="M15 18l-6-6 6-6"/>
+                </svg>
+              </button>
+            )
           )}
           <div className="flex items-center gap-2 flex-1">
             <img 
               src="https://user5301.na.imgto.link/public/20260321/az0pmpqr3wttpr2cmzwy7w-az0pmpqrar-qd1us4ehj7a-1.avif" 
-              alt="Logo" 
+              alt={t('common_logoAlt')} 
               className="h-6 w-6 object-contain"
             />
             <h1 className="font-display font-800 text-slate-800 text-lg">{title}</h1>

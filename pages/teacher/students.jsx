@@ -1,7 +1,8 @@
 // pages/teacher/students.jsx — Students from ss_registered_users + their progress on this device
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useRouter } from 'next/router';
 import { useAuth } from '../../hooks/useAuth';
+import { useI18n } from '../../hooks/useI18n';
 import AppShell from '../../components/layout/AppShell';
 import Spinner from '../../components/ui/Spinner';
 import {
@@ -10,15 +11,9 @@ import {
 } from 'lucide-react';
 import { getTeacherStudentSummaries } from '../../services/rosterProgress';
 
-const SORT_OPTIONS = [
-  { key: 'name', label: 'Name A–Z' },
-  { key: 'xp', label: 'XP (high)' },
-  { key: 'score', label: 'Score (high)' },
-  { key: 'streak', label: 'Streak' },
-];
-
 export default function TeacherStudentsPage() {
   const { user, loading } = useAuth();
+  const { t } = useI18n();
   const router = useRouter();
 
   const [search, setSearch] = useState('');
@@ -42,6 +37,16 @@ export default function TeacherStudentsPage() {
     };
   }, [refresh]);
 
+  const SORT_OPTIONS = useMemo(
+    () => [
+      { key: 'name', label: t('ts_sort_name') },
+      { key: 'xp', label: t('ts_sort_xp') },
+      { key: 'score', label: t('ts_sort_score') },
+      { key: 'streak', label: t('ts_sort_streak') },
+    ],
+    [t],
+  );
+
   useEffect(() => {
     if (!loading && (!user || user.role !== 'teacher')) router.replace('/home');
   }, [user, loading, router]);
@@ -58,7 +63,7 @@ export default function TeacherStudentsPage() {
   const allClasses = [...new Set(summaries.map(s => s.cls))].sort((a, b) => +a - +b);
   const above80 = summaries.filter(s => s.scorePct != null && s.scorePct >= 80).length;
   const inactive = summaries.filter(s => (s.streak ?? 0) === 0).length;
-  const totalXP = summaries.reduce((t, s) => t + (s.xp ?? 0), 0);
+  const totalXP = summaries.reduce((sum, s) => sum + (s.xp ?? 0), 0);
 
   // Filter → sort
   const sorted = summaries
@@ -81,7 +86,7 @@ export default function TeacherStudentsPage() {
   };
 
   const scoreLabel = s =>
-    s.scorePct != null ? `${s.scorePct}%` : s.xp > 0 ? `${s.xp} XP` : '—';
+    s.scorePct != null ? `${s.scorePct}%` : s.xp > 0 ? t('lb_xp', { n: s.xp }) : '—';
 
   const scoreTone = s => {
     if (s.scorePct != null) {
@@ -99,21 +104,23 @@ export default function TeacherStudentsPage() {
   ];
 
   return (
-    <AppShell title="My Students">
+    <AppShell title={t('page_my_students')}>
       <div className="px-5 pt-5 pb-8 space-y-5">
 
         {/* ── Summary stats ────────────────────────────── */}
         <div className="grid grid-cols-4 gap-2 animate-fade-up">
           {[
-            { label: 'Total', value: summaries.length, icon: Users, color: 'text-indigo-500', bg: 'bg-indigo-50' },
-            { label: '80%+ avg', value: above80, icon: Award, color: 'text-emerald-500', bg: 'bg-emerald-50' },
-            { label: 'No streak', value: inactive, icon: Flame, color: 'text-rose-500', bg: 'bg-rose-50' },
+            { k: 'tot', label: t('ts_total'), value: summaries.length, icon: Users, color: 'text-indigo-500', bg: 'bg-indigo-50' },
+            { k: '80', label: t('ts_80plus'), value: above80, icon: Award, color: 'text-emerald-500', bg: 'bg-emerald-50' },
+            { k: 'ns', label: t('ts_no_streak'), value: inactive, icon: Flame, color: 'text-rose-500', bg: 'bg-rose-50' },
             {
-              label: 'Total XP', value: totalXP > 999 ? `${(totalXP / 1000).toFixed(1)}k` : totalXP,
+              k: 'xp',
+              label: t('ts_total_xp'),
+              value: totalXP > 999 ? `${(totalXP / 1000).toFixed(1)}k` : totalXP,
               icon: TrendingUp, color: 'text-amber-500', bg: 'bg-amber-50'
             },
-          ].map(({ label, value, icon: Icon, color, bg }) => (
-            <div key={label} className="card text-center py-3 px-1">
+          ].map(({ k, label, value, icon: Icon, color, bg }) => (
+            <div key={k} className="card text-center py-3 px-1">
               <div className={`inline-flex items-center justify-center h-7 w-7 rounded-lg ${bg} mx-auto mb-1.5`}>
                 <Icon size={13} className={color} />
               </div>
@@ -126,8 +133,9 @@ export default function TeacherStudentsPage() {
         {/* ── Empty state ──────────────────────────────── */}
         {summaries.length === 0 && (
           <div className="card border border-indigo-100 bg-indigo-50/60 text-sm text-indigo-900 leading-relaxed">
-            No student accounts found on this device. Students appear here after they
-            <strong> register with the Student role</strong> in the same browser.
+            {t('ts_empty_1')}
+            <strong>{t('ts_empty_strong')}</strong>
+            {t('ts_empty_2')}
           </div>
         )}
 
@@ -138,7 +146,7 @@ export default function TeacherStudentsPage() {
               <Search size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
               <input
                 className="input pl-10"
-                placeholder="Search students…"
+                placeholder={t('ts_search_ph')}
                 value={search}
                 onChange={e => setSearch(e.target.value)}
               />
@@ -152,7 +160,7 @@ export default function TeacherStudentsPage() {
                 }`}
             >
               <SlidersHorizontal size={14} />
-              Sort
+              {t('ts_sort')}
             </button>
           </div>
 
@@ -183,7 +191,7 @@ export default function TeacherStudentsPage() {
                     : 'bg-white text-slate-600 border border-slate-200 hover:border-indigo-300'
                   }`}
               >
-                {c === 'all' ? 'All Classes' : `Class ${c}`}
+                {c === 'all' ? t('ts_all_classes') : t('quiz_classN', { n: c })}
               </button>
             ))}
           </div>
@@ -193,7 +201,7 @@ export default function TeacherStudentsPage() {
         <div className="space-y-2 animate-fade-up" style={{ animationDelay: '120ms' }}>
           <div className="flex items-center justify-between px-1">
             <h3 className="font-display font-800 text-slate-700 text-base">
-              {sorted.length} Student{sorted.length !== 1 ? 's' : ''}
+              {sorted.length === 1 ? t('ts_one_student_list') : t('ts_n_students_list', { n: sorted.length })}
             </h3>
             {search && (
               <button
@@ -201,7 +209,7 @@ export default function TeacherStudentsPage() {
                 onClick={() => setSearch('')}
                 className="text-xs text-slate-400 hover:text-slate-600 font-600"
               >
-                Clear search
+                {t('ts_clear_search')}
               </button>
             )}
           </div>
@@ -209,7 +217,7 @@ export default function TeacherStudentsPage() {
           <div className="card p-0 overflow-hidden">
             {summaries.length > 0 && sorted.length === 0 && (
               <p className="text-center py-8 text-slate-400 text-sm">
-                No students match these filters
+                {t('ts_no_match')}
               </p>
             )}
 
@@ -224,21 +232,25 @@ export default function TeacherStudentsPage() {
                 {/* Avatar */}
                 <div className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 font-800 text-sm ${AVATAR_COLORS[i % AVATAR_COLORS.length]
                   }`}>
-                  {s.name.charAt(0).toUpperCase()}
+                  {(s.name || '?').charAt(0).toUpperCase()}
                 </div>
 
                 {/* Info */}
                 <div className="flex-1 min-w-0 text-left">
                   <p className="text-sm font-700 text-slate-800 truncate">{s.name}</p>
                   <div className="flex items-center gap-2 mt-0.5 flex-wrap">
-                    <span className="text-[11px] text-slate-400">Class {s.cls}</span>
+                    <span className="text-[11px] text-slate-400">{t('quiz_classN', { n: s.cls })}</span>
                     <span className="text-[11px] text-slate-300">|</span>
-                    <span className="text-[11px] text-slate-400">{s.quizzes ?? 0} quiz{(s.quizzes ?? 0) !== 1 ? 'zes' : ''}</span>
+                    <span className="text-[11px] text-slate-400">
+                      {(s.quizzes ?? 0) === 1
+                        ? t('ts_one_quiz')
+                        : t('ts_n_quizzes', { n: s.quizzes ?? 0 })}
+                    </span>
                     {(s.streak ?? 0) > 0 && (
                       <>
                         <span className="text-[11px] text-slate-300">|</span>
                         <span className="text-[11px] text-amber-500 font-700">
-                          🔥 {s.streak}d
+                          {t('ts_fire_streak', { n: s.streak })}
                         </span>
                       </>
                     )}

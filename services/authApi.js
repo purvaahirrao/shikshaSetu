@@ -1,6 +1,6 @@
 // PostgreSQL-backed auth & activity sync (FastAPI). Falls back silently when API/DB unavailable.
 
-const BASE = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000';
+import { getApiBase } from '../lib/apiBase';
 
 export function mapServerUserToClient(row) {
   if (!row) return null;
@@ -35,6 +35,7 @@ async function parseError(res) {
 
 /** @returns {Promise<{user: object}|null>} null if DB unavailable (503) */
 export async function authRegister(body) {
+  const BASE = getApiBase();
   const res = await fetch(`${BASE}/auth/register`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -58,6 +59,7 @@ export async function authLogin(email, password) {
 }
 
 export async function authGoogle({ firebase_uid, email, full_name, avatar_url }) {
+  const BASE = getApiBase();
   const res = await fetch(`${BASE}/auth/google`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -74,6 +76,7 @@ export async function authGoogle({ firebase_uid, email, full_name, avatar_url })
 }
 
 export async function patchUserProfile(userId, patch) {
+  const BASE = getApiBase();
   const res = await fetch(`${BASE}/users/${encodeURIComponent(userId)}/profile`, {
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json' },
@@ -84,6 +87,7 @@ export async function patchUserProfile(userId, patch) {
 }
 
 export async function postStudentActivity({ userId, activityType, subjectHint, summary, payload }) {
+  const BASE = getApiBase();
   const res = await fetch(`${BASE}/activity`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -100,6 +104,7 @@ export async function postStudentActivity({ userId, activityType, subjectHint, s
 }
 
 export async function fetchUserProgress(userId) {
+  const BASE = getApiBase();
   const res = await fetch(`${BASE}/users/${encodeURIComponent(userId)}/progress`);
   if (res.status === 503) return null;
   if (!res.ok) throw new Error(await parseError(res));

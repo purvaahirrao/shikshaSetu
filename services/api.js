@@ -1,9 +1,10 @@
 // services/api.js
 // All backend communication lives here
 
-const BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+import { getApiBase } from '../lib/apiBase';
 
 async function request(path, options = {}) {
+  const BASE = getApiBase();
   const res = await fetch(`${BASE}${path}`, {
     headers: { 'Content-Type': 'application/json', ...options.headers },
     ...options,
@@ -17,6 +18,7 @@ async function request(path, options = {}) {
 
 // POST /ocr  — multipart image upload
 export async function ocrImage(file) {
+  const BASE = getApiBase();
   const form = new FormData();
   form.append('image', file);
   const res = await fetch(`${BASE}/ocr`, { method: 'POST', body: form });

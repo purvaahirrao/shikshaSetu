@@ -2,6 +2,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/router';
 import { useAuth } from '../../hooks/useAuth';
+import { useI18n } from '../../hooks/useI18n';
 import AppShell from '../../components/layout/AppShell';
 import Spinner from '../../components/ui/Spinner';
 import {
@@ -15,9 +16,11 @@ import {
   topStudentsByXp,
   teacherOverviewStats,
 } from '../../services/rosterProgress';
+import { translateSubjectDisplayName } from '../../services/subjectI18n';
 
 export default function AnalyticsPage() {
   const { user, loading } = useAuth();
+  const { t } = useI18n();
   const router = useRouter();
   const [tick, setTick] = useState(0);
 
@@ -62,11 +65,10 @@ export default function AnalyticsPage() {
     (st.weekBars ?? []).forEach((b, i) => { if (b?.done) heatByDay[i]++; });
   });
   const maxHeat = Math.max(1, ...heatByDay);
-  const WEEK_LABELS = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
 
   return (
     <AppShell
-      title="Analytics"
+      title={t('nav_analytics')}
       left={
         <button
           type="button"
@@ -81,23 +83,30 @@ export default function AnalyticsPage() {
 
         {/* ── Hero banner ─────────────────────────────── */}
         <div className="rounded-2xl p-5 bg-gradient-to-br from-indigo-500 to-purple-600 text-white animate-fade-up">
-          <p className="text-indigo-200 text-xs font-600 uppercase tracking-wide mb-1">Class Overview</p>
+          <p className="text-indigo-200 text-xs font-600 uppercase tracking-wide mb-1">{t('ta_hero')}</p>
           <p className="font-display font-900 text-2xl leading-tight">
-            {hasData ? `${summaries.length} student${summaries.length !== 1 ? 's' : ''}` : 'No students yet'}
+            {hasData
+              ? summaries.length === 1
+                ? t('ta_students_one')
+                : t('ta_students_many', { n: summaries.length })
+              : t('ta_no_students_hero')}
           </p>
           <p className="text-indigo-200 text-xs mt-1">
             {hasData
-              ? `${overview.active} active this week · ${overview.avgScorePct ?? '—'}% avg quiz score`
-              : 'Student accounts on this device will appear here automatically'}
+              ? t('ta_hero_line_data', {
+                  active: overview.active,
+                  pct: overview.avgScorePct ?? '—',
+                })
+              : t('ta_hero_line_empty')}
           </p>
           {hasData && (
             <div className="mt-4 grid grid-cols-3 gap-3">
               {[
-                { label: 'Total XP', value: totalXP.toLocaleString() },
-                { label: 'Top streak', value: `${topStreak}d` },
-                { label: 'Classes', value: classRows.length },
-              ].map(({ label, value }) => (
-                <div key={label} className="bg-white/15 rounded-xl p-2.5 text-center">
+                { k: 'xp', label: t('ta_total_xp'), value: totalXP.toLocaleString() },
+                { k: 'st', label: t('ta_top_streak'), value: t('ta_top_streak_val', { n: topStreak }) },
+                { k: 'cl', label: t('ta_classes'), value: classRows.length },
+              ].map(({ k, label, value }) => (
+                <div key={k} className="bg-white/15 rounded-xl p-2.5 text-center">
                   <p className="font-display font-900 text-lg leading-none">{value}</p>
                   <p className="text-indigo-200 text-[10px] font-600 mt-1">{label}</p>
                 </div>
@@ -109,20 +118,21 @@ export default function AnalyticsPage() {
         {/* ── Empty state ──────────────────────────────── */}
         {!hasData && (
           <div className="card border border-indigo-100 bg-indigo-50/60 text-indigo-900 text-sm leading-relaxed">
-            Students need to <strong>register with the Student role</strong> in the same browser on this device.
-            Once they do, their activity and quiz results will aggregate here in real time.
+            {t('ta_register_1')}
+            <strong>{t('ta_register_strong')}</strong>
+            {t('ta_register_2')}
           </div>
         )}
 
         {/* ── Overview stat cards ───────────────────────── */}
         <div className="grid grid-cols-2 gap-3 animate-fade-up" style={{ animationDelay: '60ms' }}>
           {[
-            { label: 'Students', value: overview.totalStudents, icon: Users, color: 'text-indigo-500', bg: 'bg-indigo-50' },
-            { label: 'Avg quiz', value: avgLabel, icon: Target, color: 'text-emerald-500', bg: 'bg-emerald-50' },
-            { label: 'Active', value: hasData ? overview.active : 0, icon: TrendingUp, color: 'text-amber-500', bg: 'bg-amber-50' },
-            { label: 'Quiz sessions', value: summaries.reduce((s, st) => s + (st.quizzes ?? 0), 0), icon: Brain, color: 'text-purple-500', bg: 'bg-purple-50' },
-          ].map(({ label, value, icon: Icon, color, bg }) => (
-            <div key={label} className="card flex items-center gap-3 py-4">
+            { k: 'st', label: t('ta_card_students'), value: overview.totalStudents, icon: Users, color: 'text-indigo-500', bg: 'bg-indigo-50' },
+            { k: 'avg', label: t('ta_card_avg_quiz'), value: avgLabel, icon: Target, color: 'text-emerald-500', bg: 'bg-emerald-50' },
+            { k: 'ac', label: t('ta_card_active'), value: hasData ? overview.active : 0, icon: TrendingUp, color: 'text-amber-500', bg: 'bg-amber-50' },
+            { k: 'qz', label: t('ta_card_sessions'), value: summaries.reduce((s, st) => s + (st.quizzes ?? 0), 0), icon: Brain, color: 'text-purple-500', bg: 'bg-purple-50' },
+          ].map(({ k, label, value, icon: Icon, color, bg }) => (
+            <div key={k} className="card flex items-center gap-3 py-4">
               <div className={`inline-flex items-center justify-center h-10 w-10 rounded-xl ${bg} shrink-0`}>
                 <Icon size={18} className={color} />
               </div>
@@ -136,16 +146,16 @@ export default function AnalyticsPage() {
 
         {/* ── Class-wise performance ───────────────────── */}
         <div className="space-y-3 animate-fade-up" style={{ animationDelay: '100ms' }}>
-          <h3 className="font-display font-800 text-slate-700 text-base">Class performance</h3>
+          <h3 className="font-display font-800 text-slate-700 text-base">{t('ta_class_perf')}</h3>
           <div className="card p-0 overflow-hidden">
             <div className="grid grid-cols-4 p-3 bg-slate-50 text-[10px] font-800 text-slate-400 uppercase tracking-wider">
-              <span>Class</span>
-              <span className="text-center">Students</span>
-              <span className="text-center">Avg quiz</span>
-              <span className="text-center">Active</span>
+              <span>{t('ta_col_class')}</span>
+              <span className="text-center">{t('ta_col_students')}</span>
+              <span className="text-center">{t('ta_col_avg')}</span>
+              <span className="text-center">{t('ta_col_active')}</span>
             </div>
             {classRows.length === 0 ? (
-              <p className="p-4 text-sm text-slate-400">No class data yet.</p>
+              <p className="p-4 text-sm text-slate-400">{t('ta_no_class')}</p>
             ) : (
               classRows.map((c, i) => {
                 const scoreColor =
@@ -158,7 +168,7 @@ export default function AnalyticsPage() {
                     key={c.cls}
                     className={`grid grid-cols-4 p-3 items-center ${i < classRows.length - 1 ? 'border-b border-slate-50' : ''}`}
                   >
-                    <span className="text-sm font-700 text-slate-800">Class {c.cls}</span>
+                    <span className="text-sm font-700 text-slate-800">{t('quiz_classN', { n: c.cls })}</span>
                     <span className="text-center text-sm font-600 text-slate-600">{c.students}</span>
                     <span className={`text-center text-sm font-800 ${scoreColor}`}>
                       {c.avg != null ? `${c.avg}%` : '—'}
@@ -173,15 +183,15 @@ export default function AnalyticsPage() {
 
         {/* ── Subject mix ──────────────────────────────── */}
         <div className="space-y-3 animate-fade-up" style={{ animationDelay: '140ms' }}>
-          <h3 className="font-display font-800 text-slate-700 text-base">Subject engagement</h3>
+          <h3 className="font-display font-800 text-slate-700 text-base">{t('ta_subject_eng')}</h3>
           <div className="card space-y-4">
             {subjectPerf.length === 0 ? (
-              <p className="text-sm text-slate-400">No subject activity yet.</p>
+              <p className="text-sm text-slate-400">{t('ta_no_subject')}</p>
             ) : (
               subjectPerf.map(({ subject, avg, color }) => (
                 <div key={subject}>
                   <div className="flex justify-between mb-1.5">
-                    <p className="text-sm font-700 text-slate-700">{subject}</p>
+                    <p className="text-sm font-700 text-slate-700">{translateSubjectDisplayName(subject, t)}</p>
                     <p className={`text-sm font-800 ${avg >= 25 ? 'text-emerald-500' : 'text-slate-400'}`}>
                       {hasData ? `${avg}%` : '—'}
                     </p>
@@ -202,7 +212,7 @@ export default function AnalyticsPage() {
         {hasData && (
           <div className="space-y-3 animate-fade-up" style={{ animationDelay: '160ms' }}>
             <h3 className="font-display font-800 text-slate-700 text-base">
-              Class activity this week
+              {t('ta_week_title')}
             </h3>
             <div className="card">
               <div className="flex items-end justify-between gap-2 h-24 mb-3">
@@ -218,12 +228,12 @@ export default function AnalyticsPage() {
                         }}
                       />
                     </div>
-                    <span className="text-[10px] font-700 text-slate-400">{WEEK_LABELS[i]}</span>
+                    <span className="text-[10px] font-700 text-slate-400">{t(`prog_wd${i}`)}</span>
                   </div>
                 ))}
               </div>
               <p className="text-[10px] text-slate-400">
-                Bar height = number of students active on that day.
+                {t('ta_bar_hint')}
               </p>
             </div>
           </div>
@@ -231,10 +241,10 @@ export default function AnalyticsPage() {
 
         {/* ── Top students by XP ───────────────────────── */}
         <div className="space-y-3 animate-fade-up" style={{ animationDelay: '180ms' }}>
-          <h3 className="font-display font-800 text-slate-700 text-base">Top by XP</h3>
+          <h3 className="font-display font-800 text-slate-700 text-base">{t('ta_top_xp')}</h3>
           <div className="card p-0 overflow-hidden">
             {top.length === 0 ? (
-              <p className="p-4 text-sm text-slate-400">No data yet.</p>
+              <p className="p-4 text-sm text-slate-400">{t('ta_no_top')}</p>
             ) : (
               top.map((s, i) => {
                 const medalBg =
@@ -257,15 +267,18 @@ export default function AnalyticsPage() {
                       <div className="text-left">
                         <p className="text-sm font-700 text-slate-800">{s.name}</p>
                         <p className="text-[11px] text-slate-400 mt-0.5">
-                          Class {s.cls} · {s.quizzes} quiz{s.quizzes !== 1 ? 'zes' : ''}
+                          {t('quiz_classN', { n: s.cls })} ·{' '}
+                          {s.quizzes === 1
+                            ? `1 ${t('ta_quiz_one')}`
+                            : `${s.quizzes} ${t('ta_quiz_many')}`}
                         </p>
                       </div>
                     </div>
                     <div className="text-right shrink-0">
-                      <p className="text-sm font-800 text-indigo-600">{s.xp} XP</p>
+                      <p className="text-sm font-800 text-indigo-600">{t('lb_xp', { n: s.xp })}</p>
                       {s.scorePct != null && (
                         <p className={`text-[11px] font-700 ${s.scorePct >= 80 ? 'text-emerald-500' : s.scorePct >= 60 ? 'text-amber-500' : 'text-rose-400'}`}>
-                          {s.scorePct}% avg
+                          {t('ta_avg_suffix', { pct: s.scorePct })}
                         </p>
                       )}
                     </div>
@@ -285,7 +298,7 @@ export default function AnalyticsPage() {
           return (
             <div className="space-y-3 animate-fade-up" style={{ animationDelay: '200ms' }}>
               <h3 className="font-display font-800 text-slate-700 text-base flex items-center gap-2">
-                <Flame size={16} className="text-rose-400" /> Needs attention
+                <Flame size={16} className="text-rose-400" /> {t('th_needs_attention')}
               </h3>
               <div className="card p-0 overflow-hidden border border-rose-100">
                 {atRisk.map((s, i) => (
@@ -298,14 +311,14 @@ export default function AnalyticsPage() {
                   >
                     <div className="flex items-center gap-3">
                       <div className="w-9 h-9 rounded-full bg-rose-100 flex items-center justify-center shrink-0">
-                        <span className="text-rose-600 font-800 text-sm">{s.name.charAt(0)}</span>
+                        <span className="text-rose-600 font-800 text-sm">{(s.name || '?').charAt(0)}</span>
                       </div>
                       <div className="text-left">
                         <p className="text-sm font-700 text-slate-800">{s.name}</p>
                         <p className="text-[11px] text-slate-400 mt-0.5">
                           {s.scorePct != null && s.scorePct < 50
-                            ? `Low quiz avg: ${s.scorePct}%`
-                            : 'No recent activity'}
+                            ? t('th_low_quiz', { pct: s.scorePct })
+                            : t('ta_no_recent')}
                         </p>
                       </div>
                     </div>
@@ -319,7 +332,7 @@ export default function AnalyticsPage() {
 
         <p className="text-[11px] text-slate-400 flex items-center gap-1.5 pb-2">
           <BarChart3 size={12} />
-          Data is from this browser only until a shared backend links rosters.
+          {t('ta_footer')}
         </p>
 
       </div>

@@ -2,12 +2,14 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/router';
 import { useAuth } from '../../hooks/useAuth';
+import { useI18n } from '../../hooks/useI18n';
 import AppShell from '../../components/layout/AppShell';
 import Spinner from '../../components/ui/Spinner';
 import {
   ArrowLeft, Plus, Trash2, BookOpen,
   Search, CheckCircle2, ChevronDown, ChevronUp,
 } from 'lucide-react';
+import { translateTeacherSubjectSlug } from '../../services/subjectI18n';
 
 const SUBJECT_COLORS = {
   math: { pill: 'bg-indigo-50 text-indigo-600', border: 'border-indigo-200' },
@@ -22,6 +24,7 @@ function getSubjectStyle(sub) {
 
 export default function ContentPage() {
   const { user, loading } = useAuth();
+  const { t } = useI18n();
   const router = useRouter();
 
   const [questions, setQuestions] = useState([]);
@@ -73,7 +76,7 @@ export default function ContentPage() {
   });
 
   const handleDelete = (id) => {
-    if (!confirm('Delete this question?')) return;
+    if (!confirm(t('tc_delete_confirm'))) return;
     const updated = questions.filter(q => q.id !== id);
     setQuestions(updated);
     localStorage.setItem('ss_teacher_questions', JSON.stringify(updated));
@@ -81,7 +84,7 @@ export default function ContentPage() {
   };
 
   const handleDeleteAll = () => {
-    if (!confirm(`Delete all ${questions.length} questions from your bank? This cannot be undone.`)) return;
+    if (!confirm(t('tc_delete_all_confirm', { n: questions.length }))) return;
     setQuestions([]);
     localStorage.removeItem('ss_teacher_questions');
     setExpandedId(null);
@@ -89,7 +92,7 @@ export default function ContentPage() {
 
   return (
     <AppShell
-      title="Question Bank"
+      title={t('page_question_bank')}
       left={
         <button
           type="button"
@@ -107,21 +110,22 @@ export default function ContentPage() {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-purple-200 text-xs font-600 uppercase tracking-wide mb-1">
-                Your questions
+                {t('tc_your_q')}
               </p>
               <p className="text-white font-display font-900 text-2xl leading-none">
                 {questions.length}
               </p>
               <p className="text-purple-200 text-xs mt-1.5">
-                {subjects.length} subject{subjects.length !== 1 ? 's' : ''} ·{' '}
-                {classes.length} class{classes.length !== 1 ? 'es' : ''}
+                {subjects.length === 1 ? t('tc_n_subjects_one') : t('tc_n_subjects_many', { n: subjects.length })}
+                {' · '}
+                {classes.length === 1 ? t('tc_n_classes_one') : t('tc_n_classes_many', { n: classes.length })}
               </p>
             </div>
             <button
               type="button"
               onClick={() => router.push('/teacher/create-quiz')}
               className="w-12 h-12 bg-white/20 rounded-2xl flex items-center justify-center hover:bg-white/30 transition-colors"
-              aria-label="Add question"
+              aria-label={t('tc_add_q')}
             >
               <Plus size={24} className="text-white" />
             </button>
@@ -134,7 +138,9 @@ export default function ContentPage() {
                 const count = questions.filter(q => q.subject?.toLowerCase() === sub).length;
                 return (
                   <div key={sub} className="bg-white/15 rounded-xl px-3 py-1.5 text-center">
-                    <span className="text-white text-xs font-700 capitalize">{sub}</span>
+                    <span className="text-white text-xs font-700 capitalize">
+                      {translateTeacherSubjectSlug(sub, t)}
+                    </span>
                     <span className="text-purple-200 text-[10px] ml-1.5">×{count}</span>
                   </div>
                 );
@@ -148,7 +154,7 @@ export default function ContentPage() {
           <Search size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
           <input
             className="input pl-10"
-            placeholder="Search questions…"
+            placeholder={t('tc_search_ph')}
             value={search}
             onChange={e => setSearch(e.target.value)}
           />
@@ -169,7 +175,7 @@ export default function ContentPage() {
                   : 'bg-white text-slate-600 border border-slate-200 hover:border-purple-300'
                 }`}
             >
-              {s === 'all' ? 'All Subjects' : s}
+              {s === 'all' ? t('tc_all_subjects') : translateTeacherSubjectSlug(s, t)}
             </button>
           ))}
         </div>
@@ -190,7 +196,7 @@ export default function ContentPage() {
                     : 'bg-white text-slate-600 border border-slate-200 hover:border-slate-400'
                   }`}
               >
-                {c === 'all' ? 'All Classes' : `Class ${c}`}
+                {c === 'all' ? t('tc_all_classes') : t('quiz_classN', { n: c })}
               </button>
             ))}
           </div>
@@ -200,14 +206,14 @@ export default function ContentPage() {
         {questions.length > 0 && (
           <div className="flex items-center justify-between px-0.5">
             <p className="text-xs text-slate-400 font-600">
-              {filtered.length} of {questions.length} shown
+              {t('tc_shown', { shown: filtered.length, total: questions.length })}
             </p>
             <button
               type="button"
               onClick={handleDeleteAll}
               className="text-xs text-rose-400 hover:text-rose-600 font-700 transition-colors"
             >
-              Clear all
+              {t('tc_clear_all')}
             </button>
           </div>
         )}
@@ -219,19 +225,19 @@ export default function ContentPage() {
               <div className="w-16 h-16 bg-slate-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
                 <BookOpen size={32} className="text-slate-300" />
               </div>
-              <p className="text-slate-600 font-700 mb-1">No questions yet</p>
-              <p className="text-slate-400 text-sm mb-5">Build your question bank to assign quizzes to students</p>
+              <p className="text-slate-600 font-700 mb-1">{t('tc_no_questions')}</p>
+              <p className="text-slate-400 text-sm mb-5">{t('tc_no_questions_sub')}</p>
               <button
                 type="button"
                 onClick={() => router.push('/teacher/create-quiz')}
                 className="inline-flex items-center gap-1.5 bg-purple-500 text-white text-sm font-700 px-5 py-2.5 rounded-xl hover:bg-purple-600 transition-colors"
               >
-                <Plus size={16} /> Create First Question
+                <Plus size={16} /> {t('tc_create_first')}
               </button>
             </div>
           ) : filtered.length === 0 ? (
             <p className="text-center py-8 text-slate-400 text-sm">
-              No questions match your filters
+              {t('tc_no_match_filter')}
             </p>
           ) : (
             filtered.map((q, i) => {
@@ -257,14 +263,14 @@ export default function ContentPage() {
                       </p>
                       <div className="flex gap-2 mt-2 flex-wrap">
                         <span className={`text-[10px] px-2 py-0.5 rounded-md font-700 capitalize ${style.pill}`}>
-                          {q.subject}
+                          {translateTeacherSubjectSlug(q.subject, t)}
                         </span>
                         <span className="text-[10px] px-2 py-0.5 bg-slate-100 text-slate-500 font-700 rounded-md">
-                          Class {q.class}
+                          {t('quiz_classN', { n: q.class })}
                         </span>
                         {q.createdBy && (
                           <span className="text-[10px] text-slate-400 font-600">
-                            by {q.createdBy.split(' ')[0]}
+                            {t('tc_by_author', { name: q.createdBy.split(' ')[0] })}
                           </span>
                         )}
                       </div>
@@ -274,7 +280,7 @@ export default function ContentPage() {
                         type="button"
                         onClick={e => { e.stopPropagation(); handleDelete(q.id); }}
                         className="p-1.5 rounded-lg text-slate-300 hover:bg-rose-50 hover:text-rose-500 transition-colors"
-                        aria-label="Delete question"
+                        aria-label={t('tc_delete_aria')}
                       >
                         <Trash2 size={14} />
                       </button>
@@ -321,7 +327,7 @@ export default function ContentPage() {
             type="button"
             onClick={() => router.push('/teacher/create-quiz')}
             className="fixed bottom-24 right-5 w-14 h-14 bg-purple-500 hover:bg-purple-600 text-white rounded-full shadow-lg flex items-center justify-center transition-all active:scale-95 z-40"
-            aria-label="Add question"
+            aria-label={t('tc_add_q')}
           >
             <Plus size={26} />
           </button>

@@ -279,6 +279,7 @@ export function weekChartData(p) {
   const max = Math.max(1, ...bars);
   return WEEK_LABELS.map((day, i) => ({
     day,
+    dayIndex: i,
     count: bars[i] || 0,
     heightPct: Math.round(((bars[i] || 0) / max) * 100) || (bars[i] > 0 ? 8 : 12),
     done: (bars[i] || 0) > 0,
@@ -303,33 +304,39 @@ export function badgesFromProgress(p) {
   const acc = accuracyPercent(p);
   return [
     {
-      title: 'First Answer',
-      desc: 'Solved your first question',
+      id: 'first',
+      titleKey: 'badge_first_title',
+      descKey: 'badge_first_desc',
       earned: p.questionsSolved >= 1,
     },
     {
-      title: '7-Day Streak',
-      desc: 'Studied 7 days in a row',
+      id: 'streak7',
+      titleKey: 'badge_streak7_title',
+      descKey: 'badge_streak7_desc',
       earned: (p.streak || 0) >= 7,
     },
     {
-      title: 'Math Champion',
-      desc: 'Solved 10 math problems',
+      id: 'math',
+      titleKey: 'badge_math_title',
+      descKey: 'badge_math_desc',
       earned: (p.subjectCounts?.Mathematics || 0) >= 10,
     },
     {
-      title: 'Speed Learner',
-      desc: '5+ activities in one day',
+      id: 'speed',
+      titleKey: 'badge_speed_title',
+      descKey: 'badge_speed_desc',
       earned: (p.maxActionsOneDay || 0) >= 5,
     },
     {
-      title: 'Perfect Score',
-      desc: 'Completed a quiz with no mistakes',
+      id: 'perfect',
+      titleKey: 'badge_perfect_title',
+      descKey: 'badge_perfect_desc',
       earned: (p.perfectQuizzes || 0) >= 1,
     },
     {
-      title: 'Sharp Mind',
-      desc: '80%+ quiz accuracy (10+ questions)',
+      id: 'sharp',
+      titleKey: 'badge_sharp_title',
+      descKey: 'badge_sharp_desc',
       earned: p.quizQuestionsTotal >= 10 && acc != null && acc >= 80,
     },
   ];

@@ -2,6 +2,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/router';
 import { ArrowLeft, Moon, Type, Volume2, Globe, Zap } from 'lucide-react';
+import { useI18n } from '../../hooks/useI18n';
 
 function Toggle({ checked, onChange }) {
   return (
@@ -18,35 +19,36 @@ function Toggle({ checked, onChange }) {
   );
 }
 
-const SECTIONS = [
+const SECTION_DEFS = [
   {
-    heading: 'Display',
+    headingKey: 'prefs_section_display',
     items: [
-      { key: 'darkMode', icon: Moon, color: 'text-indigo-600', bg: 'bg-indigo-100', title: 'Dark Mode (Beta)', desc: 'Easier on the eyes at night', default: false },
-      { key: 'highContrast', icon: Type, color: 'text-slate-700', bg: 'bg-slate-100', title: 'High Contrast Text', desc: 'Make words easier to read', default: false },
+      { key: 'darkMode', icon: Moon, color: 'text-indigo-600', bg: 'bg-indigo-100', titleKey: 'prefs_dark_title', descKey: 'prefs_dark_desc', default: false },
+      { key: 'highContrast', icon: Type, color: 'text-slate-700', bg: 'bg-slate-100', titleKey: 'prefs_contrast_title', descKey: 'prefs_contrast_desc', default: false },
     ],
   },
   {
-    heading: 'Audio',
+    headingKey: 'prefs_section_audio',
     items: [
-      { key: 'soundEffects', icon: Volume2, color: 'text-emerald-600', bg: 'bg-emerald-100', title: 'Sound Effects', desc: 'Play cheers for correct answers', default: true },
+      { key: 'soundEffects', icon: Volume2, color: 'text-emerald-600', bg: 'bg-emerald-100', titleKey: 'prefs_sound_title', descKey: 'prefs_sound_desc', default: true },
     ],
   },
   {
-    heading: 'Learning',
+    headingKey: 'prefs_section_learning',
     items: [
-      { key: 'animations', icon: Zap, color: 'text-amber-600', bg: 'bg-amber-100', title: 'Animations', desc: 'Smooth transitions and effects', default: true },
-      { key: 'autoLanguage', icon: Globe, color: 'text-blue-600', bg: 'bg-blue-100', title: 'Auto-detect Language', desc: 'Match questions to your profile lang', default: false },
+      { key: 'animations', icon: Zap, color: 'text-amber-600', bg: 'bg-amber-100', titleKey: 'prefs_anim_title', descKey: 'prefs_anim_desc', default: true },
+      { key: 'autoLanguage', icon: Globe, color: 'text-blue-600', bg: 'bg-blue-100', titleKey: 'prefs_autolang_title', descKey: 'prefs_autolang_desc', default: false },
     ],
   },
 ];
 
 export default function AppPreferences() {
   const router = useRouter();
+  const { t } = useI18n();
   const [settings, setSettings] = useState(
     Object.fromEntries(
-      SECTIONS.flatMap(s => s.items).map(item => [item.key, item.default])
-    )
+      SECTION_DEFS.flatMap(s => s.items).map(item => [item.key, item.default]),
+    ),
   );
 
   const toggle = (key) => setSettings(s => ({ ...s, [key]: !s[key] }));
@@ -56,27 +58,29 @@ export default function AppPreferences() {
       <header className="fixed top-0 left-0 right-0 bg-white/80 backdrop-blur-md z-50 border-b border-slate-200">
         <div className="flex items-center h-16 px-4 max-w-md mx-auto relative">
           <button
+            type="button"
             onClick={() => router.back()}
             className="p-2 -ml-2 text-slate-600 hover:text-brand-600 transition-colors absolute left-4"
+            aria-label={t('common_goBack')}
           >
             <ArrowLeft size={24} />
           </button>
           <h1 className="text-lg font-900 font-display text-slate-800 w-full text-center">
-            App Preferences
+            {t('settings_prefs_title')}
           </h1>
         </div>
       </header>
 
       <main className="pt-24 px-5 max-w-md mx-auto space-y-6 animate-fade-in">
-        <p className="text-sm font-600 text-slate-500 px-1">Customize your learning experience.</p>
+        <p className="text-sm font-600 text-slate-500 px-1">{t('settings_prefs_subtitle')}</p>
 
-        {SECTIONS.map(({ heading, items }) => (
-          <div key={heading}>
+        {SECTION_DEFS.map(({ headingKey, items }) => (
+          <div key={headingKey}>
             <p className="text-xs font-800 text-slate-400 uppercase tracking-widest px-1 mb-2">
-              {heading}
+              {t(headingKey)}
             </p>
             <div className="card p-0 overflow-hidden shadow-sm">
-              {items.map(({ key, icon: Icon, color, bg, title, desc }, i) => (
+              {items.map(({ key, icon: Icon, color, bg, titleKey, descKey }, i) => (
                 <div
                   key={key}
                   className={`flex items-center justify-between p-4 bg-white hover:bg-slate-50 transition-colors ${i < items.length - 1 ? 'border-b border-slate-50' : ''
@@ -87,8 +91,8 @@ export default function AppPreferences() {
                       <Icon size={20} />
                     </div>
                     <div>
-                      <h3 className="font-800 text-sm text-slate-800">{title}</h3>
-                      <p className="text-xs font-500 text-slate-500 mt-0.5">{desc}</p>
+                      <h3 className="font-800 text-sm text-slate-800">{t(titleKey)}</h3>
+                      <p className="text-xs font-500 text-slate-500 mt-0.5">{t(descKey)}</p>
                     </div>
                   </div>
                   <Toggle checked={settings[key]} onChange={() => toggle(key)} />
@@ -100,7 +104,7 @@ export default function AppPreferences() {
 
         {settings.darkMode && (
           <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-xs text-amber-700 font-600 animate-fade-up">
-            🌙 Dark mode is in beta. Some screens may not be fully styled yet.
+            {t('prefs_dark_beta_note')}
           </div>
         )}
       </main>

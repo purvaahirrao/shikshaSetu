@@ -1,7 +1,8 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/router";
 import { Brain, ArrowLeft, CheckCircle2, XCircle, Trophy, Sparkles, Flame } from "lucide-react";
 import { useAuth } from '../hooks/useAuth';
+import { useI18n } from '../hooks/useI18n';
 import { useStudentProgress } from '../hooks/useStudentProgress';
 import { getProgressUserId, recordQuizSession } from '../services/userProgress';
 import { pickQuizQuestions, pickDailyQuestions } from '../services/quizDummyData';
@@ -9,69 +10,66 @@ import { pickQuizQuestions, pickDailyQuestions } from '../services/quizDummyData
 export default function Quiz() {
     const router = useRouter();
     const { user } = useAuth();
+    const { t, locale } = useI18n();
     const st = useStudentProgress(user);
 
     const [gameState, setGameState] = useState("setup"); // 'setup', 'loading', 'playing', 'result'
     const [classLevel, setClassLevel] = useState("5");
     const [subject, setSubject] = useState("math");
     const [questions, setQuestions] = useState([]);
-    const xpEarnedRef = useRef(0);
 
     // Playing state
     const [currentIndex, setCurrentIndex] = useState(0);
-    const [selectedOption, setSelectedOption] = useState(null);
+    const [selectedIndex, setSelectedIndex] = useState(null);
     const [isAnswerChecked, setIsAnswerChecked] = useState(false);
     const [score, setScore] = useState(0);
-    const scoreRef = useRef(0);
     const [xpEarned, setXpEarned] = useState(0);
 
-    useEffect(() => {
-        scoreRef.current = score;
-    }, [score]);
-
-    // Support ?mode=daily for the daily challenge (3 random questions)
-    useEffect(() => {
-        if (router.query.mode === 'daily') {
-            fetchQuiz(true);
-        }
-    }, [router.query.mode]);
-
-    const fetchQuiz = (isDaily = false) => {
+    const fetchQuiz = useCallback((isDaily = false) => {
+        const daily = isDaily === true;
         setGameState("loading");
         try {
-            const list = isDaily
-                ? pickDailyQuestions(classLevel, 3)
-                : pickQuizQuestions(classLevel, subject, 5);
+            const list = daily
+                ? pickDailyQuestions(classLevel, 3, locale)
+                : pickQuizQuestions(classLevel, subject, 5, locale);
             if (list.length > 0) {
                 setQuestions(list);
                 setCurrentIndex(0);
                 setScore(0);
-                setSelectedOption(null);
+                setSelectedIndex(null);
                 setIsAnswerChecked(false);
                 setXpEarned(0);
-                xpEarnedRef.current = 0;
                 setGameState("playing");
             } else {
-                alert("No questions found.");
+                alert(t('quiz_noQuestions'));
                 setGameState("setup");
             }
         } catch (error) {
             console.error("Quiz load error:", error);
-            alert("Could not load quiz.");
+            alert(t('quiz_loadFailed'));
             setGameState("setup");
         }
-    };
+    }, [classLevel, subject, t, locale]);
 
-    const handleSelect = (opt) => {
+    // Support ?mode=daily for the daily challenge (3 random questions)
+    useEffect(() => {
+        if (!router.isReady) return;
+        if (router.query.mode === 'daily') {
+            fetchQuiz(true);
+        }
+    }, [router.isReady, router.query.mode, fetchQuiz]);
+
+    const handleSelect = (index) => {
         if (!isAnswerChecked) {
-            setSelectedOption(opt);
+            setSelectedIndex(index);
         }
     };
 
     const checkAnswer = () => {
-        if (!selectedOption) return;
+        if (selectedIndex == null) return;
         setIsAnswerChecked(true);
-        if (selectedOption === questions[currentIndex].answer) {
+        const q = questions[currentIndex];
+        if (selectedIndex === q.correctIndex) {
             setScore(prev => prev + 1);
         }
     };
@@ -79,17 +77,19 @@ export default function Quiz() {
     const nextQuestion = () => {
         if (currentIndex < questions.length - 1) {
             setCurrentIndex(prev => prev + 1);
-            setSelectedOption(null);
+            setSelectedIndex(null);
             setIsAnswerChecked(false);
         } else {
             const total = questions.length;
-            const sc = scoreRef.current;
+            // Use `score` from this render (updated after Check on the last question), not a ref that can lag one tick behind state.
+            const sc = score;
             const bonus = sc === total ? 40 : 0;
-            xpEarnedRef.current = sc * 8 + bonus;
-            setXpEarned(xpEarnedRef.current);
+            const xp = sc * 8 + bonus;
+            setXpEarned(xp);
             const pid = getProgressUserId(user);
             if (pid && total > 0) {
-                recordQuizSession(pid, { correct: sc, total, subject }, user);
+                const subjectForLog = router.query?.mode === 'daily' ? 'mixed' : subject;
+                recordQuizSession(pid, { correct: sc, total, subject: subjectForLog }, user);
                 st.refresh();
             }
             setGameState("result");
@@ -97,7 +97,7 @@ export default function Quiz() {
     };
 
     const quitQuiz = () => {
-        if (confirm("Are you sure you want to quit?")) {
+        if (confirm(t('quiz_quitConfirm'))) {
             router.push('/home');
         }
     };
@@ -109,32 +109,32 @@ export default function Quiz() {
                     <button onClick={() => router.push('/home')} className="p-2 -ml-2 rounded-xl text-slate-500 hover:bg-slate-200">
                         <ArrowLeft size={24} />
                     </button>
-                    <h1 className="font-display font-800 text-slate-800 text-xl flex-1">Start Quiz</h1>
+                    <h1 className="font-display font-800 text-slate-800 text-xl flex-1">{t('quiz_titleStart')}</h1>
                 </header>
 
                 <div className="card text-center mb-6 animate-fade-up">
                     <div className="inline-flex items-center justify-center p-4 bg-purple-100 rounded-3xl mb-4 text-purple-600">
                         <Brain size={48} strokeWidth={1.5} />
                     </div>
-                    <h2 className="font-display font-800 text-2xl text-slate-800 mb-2">Ready to test yourself?</h2>
-                    <p className="text-slate-500 text-sm">Choose your level and subject to start earning XP.</p>
+                    <h2 className="font-display font-800 text-2xl text-slate-800 mb-2">{t('quiz_readyTitle')}</h2>
+                    <p className="text-slate-500 text-sm">{t('quiz_readySub')}</p>
                 </div>
 
                 <div className="space-y-4 animate-fade-up" style={{ animationDelay: '100ms' }}>
                     <div>
-                        <label className="block text-sm font-700 text-slate-700 mb-2">Class Level</label>
+                        <label className="block text-sm font-700 text-slate-700 mb-2">{t('quiz_classLevel')}</label>
                         <select className="input" value={classLevel} onChange={(e) => setClassLevel(e.target.value)}>
                             {[...Array(10)].map((_, i) => (
-                                <option key={i + 1} value={i + 1}>Class {i + 1}</option>
+                                <option key={i + 1} value={i + 1}>{t('quiz_classN', { n: i + 1 })}</option>
                             ))}
                         </select>
                     </div>
                     <div>
-                        <label className="block text-sm font-700 text-slate-700 mb-2">Subject</label>
+                        <label className="block text-sm font-700 text-slate-700 mb-2">{t('quiz_subject')}</label>
                         <select className="input" value={subject} onChange={(e) => setSubject(e.target.value)}>
-                            <option value="math">Mathematics</option>
-                            <option value="science">Science</option>
-                            <option value="english">English</option>
+                            <option value="math">{t('quiz_subj_math')}</option>
+                            <option value="science">{t('quiz_subj_science')}</option>
+                            <option value="english">{t('quiz_subj_english')}</option>
                         </select>
                     </div>
                 </div>
@@ -142,9 +142,9 @@ export default function Quiz() {
                 <div className="mt-auto pt-6">
                     <button
                         className="btn-primary w-full bg-purple-500 hover:bg-purple-600 shadow-glow-purple text-lg py-4 border-b-4 border-purple-700 active:border-b-0 active:translate-y-1 transition-all"
-                        onClick={fetchQuiz}
+                        onClick={() => fetchQuiz(false)}
                     >
-                        Let's Go!
+                        {t('quiz_go')}
                     </button>
                 </div>
             </div>
@@ -156,7 +156,7 @@ export default function Quiz() {
             <div className="min-h-screen bg-slate-50 flex items-center justify-center">
                 <div className="text-center animate-pulse">
                     <Brain className="text-purple-500 mx-auto mb-4 animate-bounce" size={48} />
-                    <p className="font-display font-800 text-slate-600 text-lg">Loading challenges...</p>
+                    <p className="font-display font-800 text-slate-600 text-lg">{t('quiz_loading')}</p>
                 </div>
             </div>
         );
@@ -164,10 +164,10 @@ export default function Quiz() {
 
     if (gameState === "result") {
         const percentage = Math.round((score / questions.length) * 100);
-        let message = "Good effort!";
-        if (percentage === 100) message = "Perfect Score!";
-        else if (percentage >= 80) message = "Amazing Job!";
-        else if (percentage >= 50) message = "Well Done!";
+        let message = t('quiz_resultGood');
+        if (percentage === 100) message = t('quiz_resultPerfect');
+        else if (percentage >= 80) message = t('quiz_resultAmazing');
+        else if (percentage >= 50) message = t('quiz_resultWell');
 
         return (
             <div className="min-h-screen bg-slate-50 flex flex-col max-w-md mx-auto p-5 pb-safe justify-center items-center">
@@ -176,7 +176,7 @@ export default function Quiz() {
                         <Trophy size={48} className="text-amber-500" />
                     </div>
                     <h1 className="font-display font-900 text-3xl text-slate-800 mb-2">{message}</h1>
-                    <p className="text-slate-500 mb-4">You scored</p>
+                    <p className="text-slate-500 mb-4">{t('quiz_youScored')}</p>
                     <div className="text-6xl font-display font-900 text-brand-500 mb-4">
                         {score} <span className="text-2xl text-slate-300">/ {questions.length}</span>
                     </div>
@@ -184,17 +184,17 @@ export default function Quiz() {
                     {/* XP Earned */}
                     <div className="inline-flex items-center gap-2 bg-amber-50 px-4 py-2 rounded-xl mb-6 animate-fade-up" style={{ animationDelay: '200ms' }}>
                         <Sparkles size={18} className="text-amber-500" />
-                        <span className="font-display font-900 text-amber-600 text-lg">+{xpEarned} XP</span>
+                        <span className="font-display font-900 text-amber-600 text-lg">{t('quiz_xpPlus', { xp: xpEarned })}</span>
                     </div>
 
                     <div className="flex items-center justify-center gap-4 mb-6 text-sm">
                         <div className="flex items-center gap-1.5 text-slate-500">
                             <Sparkles size={14} className="text-amber-500" />
-                            <span className="font-700">Level {st.level}</span>
+                            <span className="font-700">{t('quiz_level')} {st.level}</span>
                         </div>
                         <div className="flex items-center gap-1.5 text-slate-500">
                             <Flame size={14} className="text-orange-500" />
-                            <span className="font-700">{st.streak}-day streak</span>
+                            <span className="font-700">{t('quiz_dayStreak', { n: st.streak })}</span>
                         </div>
                     </div>
 
@@ -203,13 +203,13 @@ export default function Quiz() {
                             className="btn-primary w-full py-4 text-base font-800 border-b-4 border-brand-700 active:border-b-0 active:translate-y-1"
                             onClick={() => setGameState('setup')}
                         >
-                            Play Again
+                            {t('quiz_playAgain')}
                         </button>
                         <button
                             className="btn-secondary w-full py-4 text-base font-800"
                             onClick={() => router.push('/home')}
                         >
-                            Back to Home
+                            {t('quiz_backHome')}
                         </button>
                     </div>
                 </div>
@@ -219,6 +219,13 @@ export default function Quiz() {
 
     // Playing State
     const currentQ = questions[currentIndex];
+    if (!currentQ || questions.length === 0) {
+        return (
+            <div className="min-h-screen bg-slate-50 flex items-center justify-center p-6">
+                <p className="text-slate-500 text-sm font-600">{t('quiz_emptyRun')}</p>
+            </div>
+        );
+    }
     const progress = ((currentIndex) / questions.length) * 100;
 
     return (
@@ -247,8 +254,8 @@ export default function Quiz() {
 
                 <div className="space-y-3 pb-8">
                     {currentQ.options.map((opt, i) => {
-                        const isSelected = selectedOption === opt;
-                        const isCorrect = opt === currentQ.answer;
+                        const isSelected = selectedIndex === i;
+                        const isCorrect = i === currentQ.correctIndex;
 
                         let stateClass = "border-slate-200 hover:bg-slate-50 text-slate-700";
                         if (isSelected && !isAnswerChecked) {
@@ -267,7 +274,7 @@ export default function Quiz() {
                             <button
                                 key={i}
                                 disabled={isAnswerChecked}
-                                onClick={() => handleSelect(opt)}
+                                onClick={() => handleSelect(i)}
                                 className={`w-full text-left p-4 rounded-2xl border-2 font-600 text-lg transition-all active:scale-[.98] ${stateClass} flex items-center justify-between animate-fade-up`}
                                 style={{ animationDelay: `${i * 100}ms` }}
                             >
@@ -285,34 +292,34 @@ export default function Quiz() {
                 {!isAnswerChecked ? (
                     <button
                         className="btn w-full py-4 text-lg font-800 shadow-none border-b-4 active:border-b-0 active:translate-y-1 transition-all disabled:opacity-50 disabled:bg-slate-200 disabled:border-slate-300 disabled:text-slate-400 disabled:cursor-not-allowed bg-brand-500 text-white border-brand-700 hover:bg-brand-600"
-                        disabled={!selectedOption}
+                        disabled={selectedIndex == null}
                         onClick={checkAnswer}
                     >
-                        Check
+                        {t('quiz_check')}
                     </button>
                 ) : (
-                    <div className={`p-4 rounded-2xl -mx-5 -mt-5 -mb-8 px-5 pt-5 pb-8 ${selectedOption === currentQ.answer ? 'bg-brand-100' : 'bg-rose-100'} animate-fade-up`}>
+                    <div className={`p-4 rounded-2xl -mx-5 -mt-5 -mb-8 px-5 pt-5 pb-8 ${selectedIndex === currentQ.correctIndex ? 'bg-brand-100' : 'bg-rose-100'} animate-fade-up`}>
                         <div className="flex items-center gap-3 mb-4">
-                            <div className={`w-10 h-10 rounded-full flex items-center justify-center bg-white shadow-sm ${selectedOption === currentQ.answer ? 'text-brand-500' : 'text-rose-500'}`}>
-                                {selectedOption === currentQ.answer
+                            <div className={`w-10 h-10 rounded-full flex items-center justify-center bg-white shadow-sm ${selectedIndex === currentQ.correctIndex ? 'text-brand-500' : 'text-rose-500'}`}>
+                                {selectedIndex === currentQ.correctIndex
                                     ? <CheckCircle2 size={24} strokeWidth={3} />
                                     : <XCircle size={24} strokeWidth={3} />
                                 }
                             </div>
                             <div>
-                                <h3 className={`font-display font-900 text-xl ${selectedOption === currentQ.answer ? 'text-brand-700' : 'text-rose-700'}`}>
-                                    {selectedOption === currentQ.answer ? 'Awesome!' : 'Correct Answer:'}
+                                <h3 className={`font-display font-900 text-xl ${selectedIndex === currentQ.correctIndex ? 'text-brand-700' : 'text-rose-700'}`}>
+                                    {selectedIndex === currentQ.correctIndex ? t('quiz_awesome') : t('quiz_correctAnswer')}
                                 </h3>
-                                {selectedOption !== currentQ.answer && (
-                                    <p className="text-rose-600 font-600">{currentQ.answer}</p>
+                                {selectedIndex !== currentQ.correctIndex && (
+                                    <p className="text-rose-600 font-600">{currentQ.options[currentQ.correctIndex]}</p>
                                 )}
                             </div>
                         </div>
                         <button
-                            className={`w-full btn py-4 text-lg font-800 shadow-none border-b-4 active:border-b-0 active:translate-y-1 transition-all text-white ${selectedOption === currentQ.answer ? 'bg-brand-500 border-brand-700 hover:bg-brand-600' : 'bg-rose-500 border-rose-700 hover:bg-rose-600'}`}
+                            className={`w-full btn py-4 text-lg font-800 shadow-none border-b-4 active:border-b-0 active:translate-y-1 transition-all text-white ${selectedIndex === currentQ.correctIndex ? 'bg-brand-500 border-brand-700 hover:bg-brand-600' : 'bg-rose-500 border-rose-700 hover:bg-rose-600'}`}
                             onClick={nextQuestion}
                         >
-                            {currentIndex === questions.length - 1 ? 'Finish Quiz' : 'Continue'}
+                            {currentIndex === questions.length - 1 ? t('quiz_finish') : t('quiz_continue')}
                         </button>
                     </div>
                 )}

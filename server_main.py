@@ -3,10 +3,21 @@ ShikshaSetu — FastAPI Backend
 Endpoints: /  /ocr  /solve-text  /solve  /chat  /quiz  /daily-challenge
 """
 
+from __future__ import annotations
+
+import os
+import random
+
+try:
+    from dotenv import load_dotenv
+
+    load_dotenv()
+except ImportError:
+    pass
+
 from fastapi import FastAPI, File, UploadFile, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
-import random
 import uvicorn
 
 from ocr import extract_text, generate_answer as local_generate_answer
@@ -214,4 +225,5 @@ def daily_challenge(class_level: str = "5"):
 # ── Dev server ────────────────────────────────────────────────────────────────
 
 if __name__ == "__main__":
-    uvicorn.run("server_main:app", host="0.0.0.0", port=8000, reload=True)
+    port = int(os.environ.get("API_PORT", "8000"))
+    uvicorn.run("server_main:app", host="0.0.0.0", port=port, reload=True)

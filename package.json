@@ -3,9 +3,12 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
-    "build": "next build",
-    "start": "next start"
+    "dev": "node ./node_modules/next/dist/bin/next dev",
+    "setup:api": "sh -c 'if [ ! -x ./venv/bin/pip ]; then python3 -m venv venv; fi && ./venv/bin/pip install -U pip && ./venv/bin/pip install -r server_requirements.txt'",
+    "dev:api": "sh -c 'if [ ! -x ./venv/bin/python ]; then echo \"\" >&2; echo \"  [api] No Python venv at ./venv. Run:  npm run setup:api\" >&2; echo \"\" >&2; exit 1; fi; ./venv/bin/python -c \"import fastapi\" 2>/dev/null || { echo \"\" >&2; echo \"  [api] FastAPI missing in ./venv. Run:  npm run setup:api\" >&2; echo \"\" >&2; exit 1; }; exec ./venv/bin/python server_main.py'",
+    "dev:all": "concurrently -k -n web,api -c cyan,magenta \"npm run dev\" \"npm run dev:api\"",
+    "build": "node ./node_modules/next/dist/bin/next build",
+    "start": "node ./node_modules/next/dist/bin/next start"
   },
   "dependencies": {
     "next": "latest",
@@ -17,6 +20,7 @@
   },
   "devDependencies": {
     "autoprefixer": "^10.4.19",
+    "concurrently": "^9.1.2",
     "postcss": "^8.4.38",
     "tailwindcss": "^3.4.3"
   }

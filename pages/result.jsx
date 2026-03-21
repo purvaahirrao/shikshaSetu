@@ -3,6 +3,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/router';
 import { Volume2, Globe, RefreshCw, CheckCircle, ChevronRight, Bug, Camera } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
+import { useI18n } from '../hooks/useI18n';
 import { solveQuestion } from '../services/api';
 import AppShell from '../components/layout/AppShell';
 import Button from '../components/ui/Button';
@@ -10,11 +11,23 @@ import Badge from '../components/ui/Badge';
 import Toast from '../components/ui/Toast';
 import { getProgressUserId, recordQuestionSolved } from '../services/userProgress';
 
-const LANGUAGES = [
-  { value: 'english', label: 'English', flag: '🇬🇧' },
-  { value: 'hindi', label: 'हिंदी', flag: '🇮🇳' },
-  { value: 'marathi', label: 'मराठी', flag: '🇮🇳' },
+const LANG_PICKER = [
+  { value: 'english', flag: '🇬🇧' },
+  { value: 'hindi', flag: '🇮🇳' },
+  { value: 'marathi', flag: '🇮🇳' },
 ];
+
+function apiSubjectToMsgKey(s) {
+  const x = String(s || 'general').toLowerCase();
+  const map = {
+    math: 'pro_subj_Mathematics',
+    science: 'pro_subj_Science',
+    english: 'pro_subj_English',
+    social_science: 'pro_subj_Social_Science',
+    general: 'pro_subj_General',
+  };
+  return map[x] || 'pro_subj_General';
+}
 
 function speak(text, lang) {
   if (!window.speechSynthesis) return;
@@ -26,7 +39,8 @@ function speak(text, lang) {
 }
 
 export default function ResultPage() {
-  const { user, loading } = useAuth();
+  const { user, loading, setManualUser } = useAuth();
+  const { t, setGuestLocale, locale: uiLocale } = useI18n();
   const router = useRouter();
 
   const [question, setQuestion] = useState('');
@@ -52,6 +66,12 @@ export default function ResultPage() {
     if (!loading && !user) router.replace('/');
   }, [user, loading]);
 
+  useEffect(() => {
+    const next =
+      uiLocale === 'hindi' ? 'hindi' : uiLocale === 'marathi' ? 'marathi' : 'english';
+    setLanguage(next);
+  }, [uiLocale]);
+
   // Handle incoming OCR text and trigger auto-solve
   useEffect(() => {
     if (router.isReady) {
@@ -68,7 +88,9 @@ export default function ResultPage() {
         // Auto-solve if it came directly from the scan page
         if (router.query.autoSolve === 'true') {
           addLog('autoSolve is true, triggering solve()...');
-          solve(router.query.text, language);
+          const langForSolve =
+            uiLocale === 'hindi' ? 'hindi' : uiLocale === 'marathi' ? 'marathi' : 'english';
+          solve(router.query.text, langForSolve);
           // Clean up the URL so it doesn't auto-solve again if the user refreshes
           router.replace('/result', undefined, { shallow: true });
         }
@@ -76,11 +98,11 @@ export default function ResultPage() {
         addLog('No text found in URL parameters.');
       }
     }
-  }, [router.isReady, router.query]);
+  }, [router.isReady, router.query, uiLocale]);
 
   const solve = async (textToSolve = question, langToUse = language) => {
     if (!textToSolve.trim()) {
-      setToast({ message: 'Please enter a question.', type: 'error' });
+      setToast({ message: t('result_toastEmpty'), type: 'error' });
       return;
     }
 
@@ -109,7 +131,7 @@ export default function ResultPage() {
       }
     } catch (e) {
       addLog('❌ Solve API Catch Error:', e.message);
-      setToast({ message: '⚠️ Server not reachable. Start the backend.', type: 'error' });
+      setToast({ message: t('result_toastServer'), type: 'error' });
     } finally {
       setSolving(false);
     }
@@ -121,15 +143,30 @@ export default function ResultPage() {
     speak(text, language);
     setSpeaking(true);
     setTimeout(() => setSpeaking(false), 4000);
-    setToast({ message: '🔊 Reading aloud…', type: 'info' });
+    setToast({ message: t('result_toastRead'), type: 'info' });
   };
 
   const handleLangChange = (lang) => {
     setLanguage(lang);
+    setGuestLocale(lang);
+    if (user?.source === 'manual' && user?.email) {
+      const updated = { ...user, language: lang };
+      setManualUser(updated);
+      try {
+        const db = JSON.parse(localStorage.getItem('ss_registered_users') || '{}');
+        const key = user.email?.toLowerCase();
+        if (key && db[key]) {
+          db[key] = { ...db[key], ...updated };
+          localStorage.setItem('ss_registered_users', JSON.stringify(db));
+        }
+      } catch {
+        /* ignore */
+      }
+    }
     setShowLangPicker(false);
     if (result) {
       setResult(null);
-      setToast({ message: 'Language changed. Tap Get Answer again.', type: 'info' });
+      setToast({ message: t('result_toastLang'), type: 'info' });
     }
   };
 
@@ -137,7 +174,7 @@ export default function ResultPage() {
 
   return (
     <AppShell
-      title="Answer"
+      title={t('page_answer')}
       back
       onBack={() => router.back()}
       right={
@@ -146,7 +183,7 @@ export default function ResultPage() {
           className="flex items-center gap-1.5 text-sm font-600 text-slate-500 hover:text-brand-500 transition-colors bg-slate-100 px-3 py-1.5 rounded-xl"
         >
           <Globe size={14} />
-          {LANGUAGES.find(l => l.value === language)?.flag}
+          {LANG_PICKER.find(l => l.value === language)?.flag}
         </button>
       }
     >
@@ -155,7 +192,7 @@ export default function ResultPage() {
         {/* Language picker dropdown */}
         {showLangPicker && (
           <div className="card p-2 space-y-1 animate-fade-up border border-slate-100">
-            {LANGUAGES.map(l => (
+            {LANG_PICKER.map(l => (
               <button
                 key={l.value}
                 onClick={() => handleLangChange(l.value)}
@@ -163,7 +200,7 @@ export default function ResultPage() {
                   }`}
               >
                 <span className="text-lg">{l.flag}</span>
-                {l.label}
+                {t(`lang_${l.value}`)}
                 {language === l.value && <CheckCircle size={15} className="ml-auto text-brand-500" />}
               </button>
             ))}
@@ -173,11 +210,11 @@ export default function ResultPage() {
         {/* Question input */}
         <div className="animate-fade-up">
           <label className="block text-sm font-700 text-slate-600 mb-2">
-            ✏️ Your Question
+            {t('result_qLabel')}
           </label>
           <textarea
             className="textarea min-h-[100px] text-base leading-relaxed"
-            placeholder="Type or edit your question here…"
+            placeholder={t('result_qPlaceholder')}
             value={question}
             onChange={e => setQuestion(e.target.value)}
           />
@@ -190,7 +227,7 @@ export default function ResultPage() {
           loading={solving}
           onClick={() => solve()}
         >
-          {!solving && '✨'} {solving ? 'Solving…' : 'Get Answer'}
+          {!solving && '✨'} {solving ? t('result_solving') : t('result_getAnswer')}
         </Button>
 
         {/* Solving shimmer */}
@@ -209,8 +246,8 @@ export default function ResultPage() {
             {/* Subject badge */}
             {result.subject && (
               <Badge color={subjectColors[result.subject] || 'slate'}>
-                📚 {result.subject.replace('_', ' ').toUpperCase()}
-                {result.cached && <span className="ml-1 opacity-60">· cached</span>}
+                📚 {t(apiSubjectToMsgKey(result.subject))}
+                {result.cached && <span className="ml-1 opacity-60">{t('result_cached')}</span>}
               </Badge>
             )}
 
@@ -220,7 +257,7 @@ export default function ResultPage() {
                 <div className="h-7 w-7 bg-brand-500 rounded-lg flex items-center justify-center">
                   <CheckCircle size={14} className="text-white" />
                 </div>
-                <span className="text-sm font-700 text-brand-700">{result.labels?.answer_label || 'Answer'}</span>
+                <span className="text-sm font-700 text-brand-700">{result.labels?.answer_label || t('result_labelAnswer')}</span>
               </div>
               <p className="text-slate-800 text-base leading-relaxed font-500">{result.answer}</p>
             </div>
@@ -229,7 +266,7 @@ export default function ResultPage() {
             {result.steps?.length > 0 && (
               <div className="card">
                 <p className="text-sm font-700 text-slate-600 mb-4">
-                  🪜 {result.labels?.steps_label || 'Step-by-Step'}
+                  🪜 {result.labels?.steps_label || t('result_labelSteps')}
                 </p>
                 <div className="space-y-3">
                   {result.steps.map((step, i) => (
@@ -249,7 +286,7 @@ export default function ResultPage() {
               <div className="flex items-start gap-3 bg-amber-50 border border-amber-100 rounded-2xl p-4">
                 <span className="text-xl">💡</span>
                 <div>
-                  <p className="text-xs font-700 text-amber-700 mb-1">{result.labels?.tip_label || 'Remember'}</p>
+                  <p className="text-xs font-700 text-amber-700 mb-1">{result.labels?.tip_label || t('result_labelTip')}</p>
                   <p className="text-amber-800 text-sm leading-relaxed">{result.tip}</p>
                 </div>
               </div>
@@ -266,13 +303,13 @@ export default function ResultPage() {
                   }`}
               >
                 <Volume2 size={16} className={speaking ? 'animate-pulse' : ''} />
-                {speaking ? 'Speaking…' : 'Listen'}
+                {speaking ? t('result_speaking') : t('result_listen')}
               </button>
               <button
                 onClick={() => { setResult(null); setQuestion(''); router.push('/scan'); }}
                 className="flex-1 flex items-center justify-center gap-2 py-3 rounded-2xl text-sm font-700 bg-white text-slate-700 border border-slate-200 hover:border-slate-300 shadow-card transition-all"
               >
-                <Camera size={15} /> Scan New
+                <Camera size={15} /> {t('result_scanNew')}
               </button>
             </div>
 
@@ -284,8 +321,8 @@ export default function ResultPage() {
               <div className="flex items-center gap-3">
                 <span className="text-xl">💬</span>
                 <div className="text-left">
-                  <p className="text-sm font-700">Still have doubts?</p>
-                  <p className="text-xs text-slate-400">Chat with AI for more help</p>
+                  <p className="text-sm font-700">{t('result_doubtTitle')}</p>
+                  <p className="text-xs text-slate-400">{t('result_doubtSub')}</p>
                 </div>
               </div>
               <ChevronRight size={18} className="text-slate-400" />
@@ -299,13 +336,13 @@ export default function ResultPage() {
             onClick={() => setShowDebug(!showDebug)}
             className="w-full flex items-center justify-between p-3 bg-slate-200 text-slate-700 font-bold text-sm hover:bg-slate-300 transition-colors"
           >
-            <span className="flex items-center gap-2"><Bug size={16} /> Live Debug Logs</span>
+            <span className="flex items-center gap-2"><Bug size={16} /> {t('result_debugTitle')}</span>
             <span>{showDebug ? '▼' : '▲'}</span>
           </button>
 
           {showDebug && (
             <div className="p-3 max-h-48 overflow-y-auto text-xs font-mono text-slate-800 space-y-1">
-              {logs.length === 0 ? <p className="text-slate-400 italic">Waiting for actions...</p> : null}
+              {logs.length === 0 ? <p className="text-slate-400 italic">{t('result_debugWait')}</p> : null}
               {logs.map((l, i) => (
                 <div key={i} className="border-b border-slate-200 pb-1">{l}</div>
               ))}

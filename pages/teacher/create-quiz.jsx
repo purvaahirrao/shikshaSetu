@@ -2,10 +2,12 @@
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/router';
 import { useAuth } from '../../hooks/useAuth';
+import { useI18n } from '../../hooks/useI18n';
 import AppShell from '../../components/layout/AppShell';
 import Spinner from '../../components/ui/Spinner';
 import Button from '../../components/ui/Button';
 import { ArrowLeft, Plus, CheckCircle2, Trash2, BookOpen } from 'lucide-react';
+import { translateTeacherSubjectSlug } from '../../services/subjectI18n';
 
 const SUBJECTS = ['math', 'science', 'english', 'social science', 'hindi', 'computer science'];
 const CLASSES = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10'];
@@ -20,6 +22,7 @@ const EMPTY_FORM = {
 
 export default function CreateQuizPage() {
   const { user, loading } = useAuth();
+  const { t } = useI18n();
   const router = useRouter();
 
   const [form, setForm] = useState({ ...EMPTY_FORM, options: ['', '', '', ''] });
@@ -70,10 +73,10 @@ export default function CreateQuizPage() {
 
   const validate = () => {
     const e = {};
-    if (!form.question.trim()) e.question = 'Question is required';
-    if (form.options.some(o => !o.trim())) e.options = 'All options must be filled in';
+    if (!form.question.trim()) e.question = t('tcr_err_question');
+    if (form.options.some(o => !o.trim())) e.options = t('tcr_err_options_empty');
     const dupes = form.options.map(o => o.trim().toLowerCase());
-    if (new Set(dupes).size !== dupes.length) e.options = 'Options must be unique';
+    if (new Set(dupes).size !== dupes.length) e.options = t('tcr_err_options_dup');
     return e;
   };
 
@@ -110,7 +113,7 @@ export default function CreateQuizPage() {
 
   return (
     <AppShell
-      title="Create Question"
+      title={t('page_create_question')}
       left={
         <button
           type="button"
@@ -128,9 +131,11 @@ export default function CreateQuizPage() {
           <div className="rounded-xl bg-emerald-50 border border-emerald-200 p-4 flex items-center gap-3 animate-fade-up">
             <CheckCircle2 size={20} className="text-emerald-500 shrink-0" />
             <div>
-              <p className="text-sm font-700 text-emerald-700">Question saved!</p>
+              <p className="text-sm font-700 text-emerald-700">{t('tcr_saved_title')}</p>
               <p className="text-xs text-emerald-600 mt-0.5">
-                Your bank now has {bankLen} question{bankLen !== 1 ? 's' : ''}. Form cleared for the next one.
+                {bankLen === 1
+                  ? t('tcr_saved_sub_one')
+                  : t('tcr_saved_sub_many', { n: bankLen })}
               </p>
             </div>
           </div>
@@ -138,20 +143,22 @@ export default function CreateQuizPage() {
 
         {/* ── Class + Subject ──────────────────────────── */}
         <div className="animate-fade-up">
-          <p className="text-xs font-800 text-slate-400 uppercase tracking-widest mb-2">Target</p>
+          <p className="text-xs font-800 text-slate-400 uppercase tracking-widest mb-2">{t('tcr_target')}</p>
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-xs font-600 text-slate-500 mb-1.5">Class</label>
+              <label className="block text-xs font-600 text-slate-500 mb-1.5">{t('tcr_class')}</label>
               <select
                 className="input text-sm"
                 value={form.cls}
                 onChange={e => setForm(f => ({ ...f, cls: e.target.value }))}
               >
-                {CLASSES.map(c => <option key={c} value={c}>Class {c}</option>)}
+                {CLASSES.map(c => (
+                  <option key={c} value={c}>{t('quiz_classN', { n: c })}</option>
+                ))}
               </select>
             </div>
             <div>
-              <label className="block text-xs font-600 text-slate-500 mb-1.5">Subject</label>
+              <label className="block text-xs font-600 text-slate-500 mb-1.5">{t('tcr_subject')}</label>
               <select
                 className="input text-sm capitalize"
                 value={form.subject}
@@ -159,7 +166,7 @@ export default function CreateQuizPage() {
               >
                 {SUBJECTS.map(s => (
                   <option key={s} value={s}>
-                    {s.charAt(0).toUpperCase() + s.slice(1)}
+                    {translateTeacherSubjectSlug(s, t)}
                   </option>
                 ))}
               </select>
@@ -169,11 +176,11 @@ export default function CreateQuizPage() {
 
         {/* ── Question ─────────────────────────────────── */}
         <div className="animate-fade-up" style={{ animationDelay: '40ms' }}>
-          <label className="block text-xs font-600 text-slate-500 mb-1.5">Question *</label>
+          <label className="block text-xs font-600 text-slate-500 mb-1.5">{t('tcr_question_label')}</label>
           <textarea
             ref={questionRef}
             className={`input min-h-[96px] resize-none ${errors.question ? 'border-rose-400' : ''}`}
-            placeholder="e.g. What is the square root of 144?"
+            placeholder={t('tcr_q_placeholder')}
             value={form.question}
             onChange={e => {
               setForm(f => ({ ...f, question: e.target.value }));
@@ -190,8 +197,8 @@ export default function CreateQuizPage() {
         <div className="space-y-3 animate-fade-up" style={{ animationDelay: '80ms' }}>
           <div className="flex items-center justify-between">
             <label className="block text-xs font-600 text-slate-500">
-              Answer options * &nbsp;
-              <span className="text-slate-400 font-500">(tap circle to mark correct)</span>
+              {t('tcr_options_label')} &nbsp;
+              <span className="text-slate-400 font-500">{t('tcr_options_hint')}</span>
             </label>
             {form.options.length < 6 && (
               <button
@@ -199,7 +206,7 @@ export default function CreateQuizPage() {
                 onClick={addOption}
                 className="text-xs text-purple-500 font-700 hover:text-purple-700 transition-colors"
               >
-                + Add option
+                {t('tcr_add_option')}
               </button>
             )}
           </div>
@@ -224,7 +231,7 @@ export default function CreateQuizPage() {
 
               <input
                 className={`input flex-1 ${errors.options ? 'border-rose-300' : ''}`}
-                placeholder={`Option ${String.fromCharCode(65 + i)}`}
+                placeholder={t('tcr_option_ph', { letter: String.fromCharCode(65 + i) })}
                 value={opt}
                 onChange={e => {
                   updateOption(i, e.target.value);
@@ -249,14 +256,14 @@ export default function CreateQuizPage() {
             <p className="text-xs text-rose-500 font-600">{errors.options}</p>
           )}
           <p className="text-[11px] text-slate-400">
-            Green circle = correct answer. Students see options in the order you write them.
+            {t('tcr_options_footer')}
           </p>
         </div>
 
         {/* ── Preview ──────────────────────────────────── */}
         {form.question.trim() && form.options.some(o => o.trim()) && (
           <div className="rounded-2xl border-2 border-dashed border-slate-200 p-4 space-y-2 animate-fade-up">
-            <p className="text-[10px] font-800 text-slate-400 uppercase tracking-wider mb-3">Preview</p>
+            <p className="text-[10px] font-800 text-slate-400 uppercase tracking-wider mb-3">{t('tcr_preview')}</p>
             <p className="text-sm font-700 text-slate-800">{form.question}</p>
             <div className="space-y-1.5 mt-2">
               {form.options.filter(o => o.trim()).map((opt, i) => {
@@ -288,7 +295,7 @@ export default function CreateQuizPage() {
           disabled={saved}
         >
           <Plus size={18} className="mr-1.5" />
-          {saved ? 'Saved!' : 'Save to Question Bank'}
+          {saved ? t('tcr_saved_btn') : t('tcr_save')}
         </Button>
 
         {/* ── Navigate to bank ─────────────────────────── */}
@@ -298,7 +305,7 @@ export default function CreateQuizPage() {
           className="w-full text-center text-sm font-700 text-indigo-500 hover:underline py-2 flex items-center justify-center gap-1.5"
         >
           <BookOpen size={14} />
-          View Question Bank ({bankLen})
+          {t('tcr_view_bank', { n: bankLen })}
         </button>
 
       </div>

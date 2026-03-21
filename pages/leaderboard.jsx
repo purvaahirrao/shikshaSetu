@@ -3,6 +3,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/router';
 import { Crown, Medal, Award } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
+import { useI18n } from '../hooks/useI18n';
 import AppShell from '../components/layout/AppShell';
 import Avatar from '../components/ui/Avatar';
 import Spinner from '../components/ui/Spinner';
@@ -10,6 +11,7 @@ import { buildLeaderboardRows } from '../services/rosterProgress';
 
 export default function LeaderboardPage() {
   const { user, loading } = useAuth();
+  const { t } = useI18n();
   const router = useRouter();
   const [rows, setRows] = useState([]);
 
@@ -43,7 +45,7 @@ export default function LeaderboardPage() {
   const rest = rows.slice(3);
 
   return (
-    <AppShell title="Leaderboard">
+    <AppShell title={t('page_leaderboard')}>
       <div className="px-5 pt-6 pb-8 space-y-6">
 
         {/* ── Empty state ──────────────────────────────── */}
@@ -52,9 +54,9 @@ export default function LeaderboardPage() {
             <div className="w-16 h-16 bg-amber-100 rounded-full flex items-center justify-center mb-4">
               <Crown size={32} className="text-amber-400" />
             </div>
-            <p className="font-display font-800 text-slate-700 text-lg mb-1">No rankings yet</p>
+            <p className="font-display font-800 text-slate-700 text-lg mb-1">{t('lb_emptyTitle')}</p>
             <p className="text-slate-400 text-sm max-w-xs">
-              Register as a student and start practising — your XP will appear here.
+              {t('lb_emptySub')}
             </p>
           </div>
         )}
@@ -89,7 +91,7 @@ export default function LeaderboardPage() {
                 </div>
                 <Avatar name={podium[0].name} size="lg" src={podium[0].avatar} />
                 <p className="font-900 text-sm mt-1 truncate w-24 text-center">{podium[0].name.split(' ')[0]}</p>
-                <p className="text-xs font-900 text-amber-500">{podium[0].score} XP</p>
+                <p className="text-xs font-900 text-amber-500">{t('lb_xp', { n: podium[0].score })}</p>
               </div>
               <div className="w-full bg-amber-300 h-36 rounded-t-2xl border-t-4 border-amber-400 flex justify-center pt-3 shadow-inner shadow-amber-500/20">
                 <span className="font-display font-900 text-amber-700 text-3xl">1</span>
@@ -104,7 +106,7 @@ export default function LeaderboardPage() {
                 </div>
                 <Avatar name={podium[2].name} size="md" src={podium[2].avatar} />
                 <p className="font-800 text-xs mt-1 truncate w-20 text-center">{podium[2].name.split(' ')[0]}</p>
-                <p className="text-[10px] font-900 text-orange-500">{podium[2].score} XP</p>
+                <p className="text-[10px] font-900 text-orange-500">{t('lb_xp', { n: podium[2].score })}</p>
               </div>
               <div className="w-full bg-orange-200 h-24 rounded-t-2xl border-t-4 border-orange-300 flex justify-center pt-3 shadow-inner">
                 <span className="font-display font-900 text-orange-500 text-2xl">3</span>
@@ -116,7 +118,7 @@ export default function LeaderboardPage() {
         {/* Partial-podium hint */}
         {rows.length > 0 && rows.length < 3 && (
           <p className="text-center text-slate-400 text-xs mb-4">
-            Add more student accounts on this device to unlock the full podium.
+            {t('lb_podiumHint')}
           </p>
         )}
 
@@ -144,16 +146,16 @@ export default function LeaderboardPage() {
                     }`}>
                     {r.name}
                     {r.isUser && (
-                      <span className="text-brand-400 text-xs font-700 ml-1">(you)</span>
+                      <span className="text-brand-400 text-xs font-700 ml-1">{t('lb_you')}</span>
                     )}
                   </p>
                   <p className="text-[10px] font-700 text-slate-400 uppercase tracking-widest mt-0.5">
-                    Class {r.class}
+                    {t('quiz_classN', { n: r.class })}
                   </p>
                 </div>
 
                 <span className={`font-900 text-sm ${r.isUser ? 'text-brand-600' : 'text-slate-600'}`}>
-                  {r.score} XP
+                  {t('lb_xp', { n: r.score })}
                 </span>
               </div>
             ))}
@@ -162,7 +164,7 @@ export default function LeaderboardPage() {
 
         {rows.length > 0 && (
           <p className="text-[11px] text-slate-400 text-center pb-2">
-            Ranks use XP earned from solving, scanning, quizzes &amp; chat on this device.
+            {t('lb_rankFootnote')}
           </p>
         )}
 

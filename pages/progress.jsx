@@ -7,6 +7,7 @@ import {
   Trophy, Rocket, CheckCircle2,
 } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
+import { useI18n } from '../hooks/useI18n';
 import { useStudentProgress } from '../hooks/useStudentProgress';
 import AppShell from '../components/layout/AppShell';
 import ProgressBar from '../components/ui/ProgressBar';
@@ -39,6 +40,7 @@ const BADGE_ICONS = [
 
 export default function ProgressPage() {
   const { user, loading } = useAuth();
+  const { t } = useI18n();
   const router = useRouter();
   const st = useStudentProgress(user);
 
@@ -56,9 +58,11 @@ export default function ProgressPage() {
 
   const role = user.role || 'student';
   const pageTitle =
-    role === 'teacher' ? 'Class Overview' :
-      role === 'parent' ? "Child's Progress" :
-        'My Progress';
+    role === 'teacher'
+      ? t('page_progress_teacher')
+      : role === 'parent'
+        ? t('page_progress_parent')
+        : t('page_progress_student');
 
   const p = st.progress;
   const acc = accuracyPercent(p);
@@ -71,36 +75,46 @@ export default function ProgressPage() {
     ...(BADGE_ICONS[i] ?? BADGE_ICONS[0]),
   }));
 
+  const subjectLabel = (name) => {
+    const k = `pro_subj_${name.replace(/ /g, '_')}`;
+    const s = t(k);
+    return s !== k ? s : name;
+  };
+
   const statCards = [
     {
+      key: 'q',
       icon: BookOpen,
-      label: 'Questions',
+      label: t('prog_qLabel'),
       value: p.questionsSolved,
-      unit: 'solved',
+      unit: t('prog_qUnit'),
       color: 'text-brand-500',
       bg: 'bg-brand-50',
     },
     {
+      key: 'streak',
       icon: Flame,
-      label: 'Streak',
+      label: t('prog_streakLabel'),
       value: p.streak,
-      unit: 'days',
+      unit: t('prog_streakUnit'),
       color: 'text-amber-500',
       bg: 'bg-amber-50',
     },
     {
+      key: 'acc',
       icon: Target,
-      label: 'Accuracy',
+      label: t('prog_accLabel'),
       value: acc == null ? '—' : `${acc}%`,
-      unit: acc == null ? 'no quizzes yet' : 'quiz avg',
+      unit: acc == null ? t('prog_accNone') : t('prog_accUnit'),
       color: 'text-indigo-500',
       bg: 'bg-indigo-50',
     },
     {
+      key: 'week',
       icon: TrendingUp,
-      label: 'This Week',
+      label: t('prog_weekLabel'),
       value: weeklyDone,
-      unit: `/ ${weeklyGoalDays} active days`,
+      unit: t('prog_weekUnit', { n: weeklyGoalDays }),
       color: 'text-rose-500',
       bg: 'bg-rose-50',
     },
@@ -112,9 +126,9 @@ export default function ProgressPage() {
 
         {/* ── Stat Cards ──────────────────────────────── */}
         <div className="grid grid-cols-2 gap-3">
-          {statCards.map(({ icon: Icon, label, value, unit, color, bg }, i) => (
+          {statCards.map(({ key: cardKey, icon: Icon, label, value, unit, color, bg }, i) => (
             <div
-              key={label}
+              key={cardKey}
               className="card animate-fade-up"
               style={{ animationDelay: `${i * 60}ms` }}
             >
@@ -130,10 +144,10 @@ export default function ProgressPage() {
 
         {/* ── Activity Chart ──────────────────────────── */}
         <div className="card animate-fade-up" style={{ animationDelay: '80ms' }}>
-          <p className="font-display font-800 text-slate-700 text-base mb-4">Activity Chart</p>
+          <p className="font-display font-800 text-slate-700 text-base mb-4">{t('prog_chartTitle')}</p>
 
           <div className="flex items-end justify-between h-32 mb-4 pt-4 border-b border-slate-100 pb-2">
-            {weekBars.map(({ day, count, heightPct, done }, i) => (
+            {weekBars.map(({ dayIndex, count, heightPct, done }, i) => (
               <div key={i} className="flex flex-col items-center gap-2 h-full justify-end flex-1">
                 <div
                   className={`w-6 sm:w-8 rounded-t-xl transition-all relative group ${done
@@ -144,12 +158,12 @@ export default function ProgressPage() {
                 >
                   {done && count > 0 && (
                     <div className="absolute -top-8 left-1/2 -translate-x-1/2 bg-slate-800 text-white text-[10px] font-700 py-1 px-2 rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10 whitespace-nowrap">
-                      {count} actions
+                      {t('prog_actions', { n: count })}
                     </div>
                   )}
                 </div>
                 <span className={`text-[10px] font-800 ${done ? 'text-brand-500' : 'text-slate-400'}`}>
-                  {day}
+                  {t(`prog_wd${dayIndex}`)}
                 </span>
               </div>
             ))}
@@ -157,9 +171,9 @@ export default function ProgressPage() {
 
           <div className="mt-4">
             <div className="flex items-center justify-between text-xs mb-1.5">
-              <span className="font-600 text-slate-500">Weekly goal</span>
+              <span className="font-600 text-slate-500">{t('prog_weeklyGoal')}</span>
               <span className="font-800 text-brand-600">
-                {weeklyDone} / {weeklyGoalDays} days active
+                {t('prog_daysActive', { done: weeklyDone, total: weeklyGoalDays })}
               </span>
             </div>
             <ProgressBar value={weeklyDone} max={weeklyGoalDays} color="green" />
@@ -169,12 +183,12 @@ export default function ProgressPage() {
         {/* ── Course Progress ─────────────────────────── */}
         <div className="animate-fade-up" style={{ animationDelay: '140ms' }}>
           <div className="flex items-center justify-between mb-3 px-1">
-            <p className="font-display font-800 text-slate-700 text-base">Course Progress</p>
+            <p className="font-display font-800 text-slate-700 text-base">{t('prog_courseTitle')}</p>
           </div>
 
           {subjectRows.length === 0 ? (
             <div className="card text-center py-8 text-slate-400 text-sm font-600">
-              No quiz activity yet — start a quiz to see subject breakdown.
+              {t('prog_noSubject')}
             </div>
           ) : (
             <div className="grid grid-cols-2 gap-3">
@@ -190,10 +204,10 @@ export default function ProgressPage() {
                       <Icon size={22} className={meta.iconColor} />
                     </div>
                     <h4 className="font-display font-900 text-slate-800 text-xs sm:text-sm leading-tight">
-                      {name}
+                      {subjectLabel(name)}
                     </h4>
                     <p className="text-[10px] font-800 text-slate-400 mt-1 mb-3 uppercase tracking-wider">
-                      {questions} questions · {pct}% share
+                      {t('prog_qShare', { q: questions, pct })}
                     </p>
                     <ProgressBar value={pct} max={100} color={meta.color} />
                   </div>
@@ -206,16 +220,16 @@ export default function ProgressPage() {
         {/* ── Badges ──────────────────────────────────── */}
         <div className="animate-fade-up" style={{ animationDelay: '200ms' }}>
           <div className="flex items-center justify-between mb-3">
-            <p className="font-display font-800 text-slate-700 text-base">Badges</p>
+            <p className="font-display font-800 text-slate-700 text-base">{t('prog_badgesTitle')}</p>
             <Badge color="green">
-              {badgeList.filter(b => b.earned).length} earned
+              {t('prog_earned', { n: badgeList.filter(b => b.earned).length })}
             </Badge>
           </div>
 
           <div className="grid grid-cols-1 gap-3">
-            {badgeList.map(({ icon: Icon, title, desc, earned, iconColor, iconBg }) => (
+            {badgeList.map(({ icon: Icon, id, titleKey, descKey, earned, iconColor, iconBg }) => (
               <div
-                key={title}
+                key={id}
                 className={`card flex items-center gap-4 py-4 transition-opacity ${!earned ? 'opacity-50' : ''}`}
               >
                 <div className={`h-12 w-12 rounded-2xl flex items-center justify-center shrink-0 ${earned ? `${iconBg} shadow-card` : 'bg-slate-100'
@@ -223,8 +237,8 @@ export default function ProgressPage() {
                   <Icon size={22} className={earned ? iconColor : 'text-slate-400'} />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="font-display font-800 text-slate-800 text-sm">{title}</p>
-                  <p className="text-slate-400 text-xs mt-0.5">{desc}</p>
+                  <p className="font-display font-800 text-slate-800 text-sm">{t(titleKey)}</p>
+                  <p className="text-slate-400 text-xs mt-0.5">{t(descKey)}</p>
                 </div>
                 {earned && (
                   <div className="h-6 w-6 bg-brand-500 rounded-full flex items-center justify-center shrink-0">
@@ -248,14 +262,16 @@ export default function ProgressPage() {
             <TrendingUp size={24} className="text-white" />
           </div>
           <p className="font-display font-900 text-white text-lg">
-            Keep it up{role === 'parent' ? '!' : `, ${user.name?.split(' ')[0]}!`}
+            {role === 'student' && user.name?.split(' ')?.[0]
+              ? t('prog_keepUpYou', { name: user.name.split(' ')[0] })
+              : t('prog_keepUp')}
           </p>
           <p className="text-slate-400 text-sm mt-1">
             {role === 'parent'
-              ? 'Your child is making great progress.'
+              ? t('prog_footerParent')
               : role === 'teacher'
-                ? 'Your students are learning well.'
-                : 'Every question makes you smarter.'}
+                ? t('prog_footerTeacher')
+                : t('prog_footerStudent')}
           </p>
         </div>
 

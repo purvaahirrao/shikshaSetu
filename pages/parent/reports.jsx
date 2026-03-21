@@ -2,6 +2,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/router';
 import { useAuth } from '../../hooks/useAuth';
+import { useI18n } from '../../hooks/useI18n';
 import AppShell from '../../components/layout/AppShell';
 import Spinner from '../../components/ui/Spinner';
 import {
@@ -17,9 +18,11 @@ import {
   subjectRowsFromProgress,
   weekChartData,
 } from '../../services/userProgress';
+import { translateSubjectDisplayName } from '../../services/subjectI18n';
 
 export default function ParentReportsPage() {
   const { user, loading } = useAuth();
+  const { t } = useI18n();
   const router = useRouter();
 
   // Re-derive stats whenever another tab/window updates localStorage
@@ -57,28 +60,37 @@ export default function ParentReportsPage() {
     : [];
   const weekBars = p
     ? weekChartData(p)
-    : ['M', 'T', 'W', 'T', 'F', 'S', 'S'].map(day => ({ day, count: 0, heightPct: 12, done: false }));
+    : [0, 1, 2, 3, 4, 5, 6].map((dayIndex) => ({
+        day: '',
+        dayIndex,
+        count: 0,
+        heightPct: 12,
+        done: false,
+      }));
   const maxBar = Math.max(1, ...weekBars.map(b => b.count));
   const totalQuestions = p?.questionsSolved ?? 0;
   const totalQuizzes = p?.quizSessions ?? 0;
 
   const STAT_CARDS = [
     {
-      label: 'Accuracy',
+      k: 'acc',
+      label: t('pr_label_accuracy'),
       value: acc != null ? `${acc}%` : '—',
       icon: Target,
       color: 'text-amber-600',
       bg: 'bg-amber-50',
     },
     {
-      label: 'Solved',
+      k: 'sol',
+      label: t('home_solved'),
       value: linked ? totalQuestions : 0,
       icon: BookOpen,
       color: 'text-brand-500',
       bg: 'bg-brand-50',
     },
     {
-      label: 'Quizzes',
+      k: 'qz',
+      label: t('home_statQuizzes'),
       value: linked ? totalQuizzes : 0,
       icon: Brain,
       color: 'text-purple-500',
@@ -90,7 +102,7 @@ export default function ParentReportsPage() {
 
   return (
     <AppShell
-      title="Reports"
+      title={t('page_reports')}
       left={
         <button
           type="button"
@@ -105,22 +117,19 @@ export default function ParentReportsPage() {
 
         {/* ── Hero banner ─────────────────────────────── */}
         <div className="rounded-2xl p-5 bg-gradient-to-br from-amber-400 to-orange-500 animate-fade-up">
-          <p className="text-amber-100 text-sm font-600">Performance Report</p>
+          <p className="text-amber-100 text-sm font-600">{t('pr_perf_title')}</p>
           <p className="text-white font-display font-900 text-xl mt-1">
-            {user.childName || 'Your Child'}
+            {user.childName || t('pa_child_placeholder')}
           </p>
           <p className="text-amber-100 text-xs mt-1">
-            Class {user.childClass || '?'} · This device
+            {t('pr_class_device', { cls: user.childClass || '?' })}
           </p>
         </div>
 
         {/* ── No linked account notice ─────────────────── */}
         {!linked && (
           <div className="card border border-amber-100 bg-amber-50/80 text-amber-900 text-sm leading-relaxed">
-            To see live numbers, your child needs a{' '}
-            <strong>student account</strong> registered on this device with the
-            same name and class as in your parent profile. Until then, all
-            totals show zero.
+            {t('pr_link_notice')}
           </div>
         )}
 
@@ -129,8 +138,8 @@ export default function ParentReportsPage() {
           className="grid grid-cols-3 gap-3 animate-fade-up"
           style={{ animationDelay: '60ms' }}
         >
-          {STAT_CARDS.map(({ label, value, icon: Icon, color, bg }) => (
-            <div key={label} className="card text-center py-4">
+          {STAT_CARDS.map(({ k, label, value, icon: Icon, color, bg }) => (
+            <div key={k} className="card text-center py-4">
               <div className={`inline-flex items-center justify-center h-9 w-9 rounded-xl ${bg} mx-auto mb-2`}>
                 <Icon size={18} className={color} />
               </div>
@@ -147,7 +156,7 @@ export default function ParentReportsPage() {
         >
           <h3 className="font-display font-800 text-slate-700 text-base flex items-center gap-2">
             <Calendar size={16} className="text-slate-400" />
-            This week (activity)
+            {t('pr_week_activity')}
           </h3>
           <div className="card">
             <div className="flex items-end justify-between gap-2 h-28 mb-3">
@@ -164,13 +173,13 @@ export default function ParentReportsPage() {
                     />
                   </div>
                   <span className={`text-[10px] font-700 ${b.done ? 'text-amber-500' : 'text-slate-400'}`}>
-                    {b.day}
+                    {t(`prog_wd${b.dayIndex}`)}
                   </span>
                 </div>
               ))}
             </div>
             <p className="text-[10px] text-slate-400">
-              Bar height = actions that day (solve, scan, quiz, chat).
+              {t('pr_week_hint')}
             </p>
           </div>
         </div>
@@ -181,12 +190,12 @@ export default function ParentReportsPage() {
           style={{ animationDelay: '160ms' }}
         >
           <h3 className="font-display font-800 text-slate-700 text-base">
-            Subject breakdown
+            {t('pr_subject_title')}
           </h3>
 
           {!linked || subjectRows.length === 0 ? (
             <p className="text-sm text-slate-400">
-              No subject activity recorded yet.
+              {t('pr_no_subject_yet')}
             </p>
           ) : (
             <div className="space-y-3">
@@ -200,14 +209,18 @@ export default function ParentReportsPage() {
                   <div key={s.name} className="card">
                     <div className="flex items-center justify-between mb-2">
                       <div className="flex items-center gap-2">
-                        <p className="text-sm font-700 text-slate-800">{s.name}</p>
+                        <p className="text-sm font-700 text-slate-800">
+                          {translateSubjectDisplayName(s.name, t)}
+                        </p>
                         {trendUp
                           ? <TrendingUp size={14} className="text-emerald-500" />
                           : <TrendingDown size={14} className="text-rose-400" />
                         }
                       </div>
                       <span className={`text-sm font-800 ${scoreColor}`}>
-                        {s.questions} question{s.questions !== 1 ? 's' : ''}
+                        {s.questions === 1
+                          ? t('pr_questions_one')
+                          : t('pr_questions_many', { n: s.questions })}
                       </span>
                     </div>
                     <div className="progress-track h-2">
@@ -229,12 +242,12 @@ export default function ParentReportsPage() {
           style={{ animationDelay: '200ms' }}
         >
           <h3 className="font-display font-800 text-slate-700 text-base">
-            Recent activity
+            {t('pr_recent_title')}
           </h3>
           <div className="card p-0 overflow-hidden">
             {recentActivity.length === 0 ? (
               <p className="p-4 text-sm text-slate-400">
-                No recent questions yet from the linked student account.
+                {t('pr_no_recent')}
               </p>
             ) : (
               recentActivity.map((r, i) => (
@@ -244,7 +257,9 @@ export default function ParentReportsPage() {
                     }`}
                 >
                   <div className="min-w-0 flex-1">
-                    <p className="text-sm font-700 text-slate-800">{r.subject}</p>
+                    <p className="text-sm font-700 text-slate-800">
+                      {translateSubjectDisplayName(r.subject, t)}
+                    </p>
                     <p className="text-[11px] text-slate-400 mt-0.5 line-clamp-2">
                       {r.q}
                     </p>

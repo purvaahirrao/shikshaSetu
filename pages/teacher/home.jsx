@@ -1,5 +1,5 @@
 // pages/teacher/index.jsx — Teacher dashboard
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useMemo } from 'react';
 import { useRouter } from 'next/router';
 import {
   GraduationCap, Users, BarChart3, BookOpen,
@@ -7,6 +7,7 @@ import {
   Brain, Award, AlertCircle,
 } from 'lucide-react';
 import { useRequireRole } from '../../hooks/useRequireRole';
+import { useI18n } from '../../hooks/useI18n';
 import AppShell from '../../components/layout/AppShell';
 import Spinner from '../../components/ui/Spinner';
 import {
@@ -17,6 +18,7 @@ import {
 
 export default function TeacherHomePage() {
   const { user, loading } = useRequireRole('teacher');
+  const { t } = useI18n();
   const router = useRouter();
 
   const [tick, setTick] = useState(0);
@@ -48,61 +50,75 @@ export default function TeacherHomePage() {
   try { bankLen = JSON.parse(localStorage.getItem('ss_teacher_questions') || '[]').length; } catch { }
 
   const hasStudents = summaries.length > 0;
-  const firstName = user.name?.split(' ')[0] ?? 'Teacher';
+  const firstName = user.name?.split(' ')[0] ?? t('role_teacher');
 
   // At-risk: no streak + has done at least one quiz
   const atRisk = summaries.filter(s => (s.streak ?? 0) === 0 && (s.quizzes ?? 0) > 0);
 
-  const QUICK_ACTIONS = [
-    {
-      label: 'My Students',
-      sub: 'View roster & progress',
-      icon: Users,
-      iconBg: 'bg-indigo-100',
-      iconColor: 'text-indigo-600',
-      href: '/teacher/students',
-      badge: summaries.length || null,
-    },
-    {
-      label: 'Analytics',
-      sub: 'Class performance charts',
-      icon: BarChart3,
-      iconBg: 'bg-emerald-100',
-      iconColor: 'text-emerald-600',
-      href: '/teacher/analytics',
-    },
-    {
-      label: 'Question Bank',
-      sub: 'Manage your questions',
-      icon: BookOpen,
-      iconBg: 'bg-purple-100',
-      iconColor: 'text-purple-600',
-      href: '/teacher/content',
-      badge: bankLen || null,
-    },
-    {
-      label: 'Create Question',
-      sub: 'Add to your question bank',
-      icon: Plus,
-      iconBg: 'bg-amber-100',
-      iconColor: 'text-amber-600',
-      href: '/teacher/create-quiz',
-    },
-  ];
+  const QUICK_ACTIONS = useMemo(
+    () => [
+      {
+        key: 'students',
+        label: t('th_q_students'),
+        sub: t('th_q_students_sub'),
+        icon: Users,
+        iconBg: 'bg-indigo-100',
+        iconColor: 'text-indigo-600',
+        href: '/teacher/students',
+        badge: summaries.length || null,
+      },
+      {
+        key: 'analytics',
+        label: t('th_q_analytics'),
+        sub: t('th_q_analytics_sub'),
+        icon: BarChart3,
+        iconBg: 'bg-emerald-100',
+        iconColor: 'text-emerald-600',
+        href: '/teacher/analytics',
+      },
+      {
+        key: 'bank',
+        label: t('th_q_bank'),
+        sub: t('th_q_bank_sub'),
+        icon: BookOpen,
+        iconBg: 'bg-purple-100',
+        iconColor: 'text-purple-600',
+        href: '/teacher/content',
+        badge: bankLen || null,
+      },
+      {
+        key: 'create',
+        label: t('th_q_create'),
+        sub: t('th_q_create_sub'),
+        icon: Plus,
+        iconBg: 'bg-amber-100',
+        iconColor: 'text-amber-600',
+        href: '/teacher/create-quiz',
+      },
+    ],
+    [t, summaries.length, bankLen],
+  );
+
+  const avgSubtitle =
+    overview.avgScorePct != null
+      ? t('ta_avg_suffix', { pct: overview.avgScorePct })
+      : t('th_no_quizzes_yet');
 
   return (
-    <AppShell title="Teacher Dashboard">
+    <AppShell title={t('page_teacher_home')}>
       <div className="px-5 pt-6 pb-24 space-y-5">
 
         {/* ── Greeting ────────────────────────────────── */}
         <div className="animate-fade-up">
           <h1 className="font-display font-900 text-2xl text-slate-800 leading-tight">
-            Welcome, {firstName} 👋
+            {t('th_welcome', { name: firstName })}
           </h1>
           <p className="text-slate-500 text-sm mt-1">
             {hasStudents
-              ? `You have ${summaries.length} student${summaries.length !== 1 ? 's' : ''} on this device.`
-              : 'Your class dashboard will fill up once students register.'}
+              ? summaries.length === 1
+                ? t('th_roster_one')
+                : t('th_roster_many', { n: summaries.length })
+              : t('th_roster_empty')}
           </p>
         </div>
 
@@ -114,10 +130,11 @@ export default function TeacherHomePage() {
           >
             <AlertCircle size={18} className="text-indigo-400 shrink-0 mt-0.5" />
             <div>
-              <p className="text-sm font-700 text-indigo-900">No students yet</p>
+              <p className="text-sm font-700 text-indigo-900">{t('th_no_students_title')}</p>
               <p className="text-xs text-indigo-700 mt-0.5 leading-relaxed">
-                Students need to <strong>register with the Student role</strong> in this same browser.
-                Their activity will appear here automatically.
+                {t('th_no_students_before')}
+                <strong>{t('th_no_students_strong')}</strong>
+                {t('th_no_students_after')}
               </p>
             </div>
           </div>
@@ -131,14 +148,13 @@ export default function TeacherHomePage() {
           <div className="flex items-start justify-between">
             <div>
               <p className="text-indigo-200 text-xs font-600 uppercase tracking-wide mb-1">
-                Class overview
+                {t('th_class_overview')}
               </p>
               <p className="font-display font-900 text-2xl leading-tight">
-                {summaries.length} Student{summaries.length !== 1 ? 's' : ''}
+                {summaries.length === 1 ? t('th_one_student') : t('th_n_students', { n: summaries.length })}
               </p>
               <p className="text-indigo-200 text-xs mt-1">
-                {overview.active} active this week ·{' '}
-                {overview.avgScorePct != null ? `${overview.avgScorePct}% avg` : 'no quizzes yet'}
+                {t('th_active_line', { active: overview.active, avg: avgSubtitle })}
               </p>
             </div>
             <div className="h-12 w-12 rounded-2xl bg-white/20 flex items-center justify-center">
@@ -149,12 +165,12 @@ export default function TeacherHomePage() {
           {hasStudents && (
             <div className="mt-4 grid grid-cols-4 gap-2">
               {[
-                { label: 'Questions', value: summaries.reduce((t, s) => t + (s.questionsSolved ?? 0), 0) },
-                { label: 'Quizzes', value: summaries.reduce((t, s) => t + (s.quizzes ?? 0), 0) },
-                { label: 'Bank Qs', value: bankLen },
-                { label: 'At risk', value: atRisk.length },
-              ].map(({ label, value }) => (
-                <div key={label} className="bg-white/15 rounded-xl p-2 text-center">
+                { k: 'q', label: t('th_stat_questions'), value: summaries.reduce((a, s) => a + (s.questionsSolved ?? 0), 0) },
+                { k: 'z', label: t('th_stat_quizzes'), value: summaries.reduce((a, s) => a + (s.quizzes ?? 0), 0) },
+                { k: 'b', label: t('th_stat_bank'), value: bankLen },
+                { k: 'r', label: t('th_stat_atrisk'), value: atRisk.length },
+              ].map(({ k, label, value }) => (
+                <div key={k} className="bg-white/15 rounded-xl p-2 text-center">
                   <p className="font-display font-900 text-base leading-none">{value}</p>
                   <p className="text-indigo-200 text-[9px] font-600 mt-1 uppercase tracking-wide leading-none">{label}</p>
                 </div>
@@ -169,12 +185,12 @@ export default function TeacherHomePage() {
           style={{ animationDelay: '80ms' }}
         >
           <p className="text-xs font-800 text-slate-400 uppercase tracking-widest px-1 mb-2">
-            Quick access
+            {t('th_quick_access')}
           </p>
           <div className="card p-0 overflow-hidden">
-            {QUICK_ACTIONS.map(({ label, sub, icon: Icon, iconBg, iconColor, href, badge }, i) => (
+            {QUICK_ACTIONS.map(({ key, label, sub, icon: Icon, iconBg, iconColor, href, badge }, i) => (
               <button
-                key={label}
+                key={key}
                 type="button"
                 onClick={() => router.push(href)}
                 className={`w-full flex items-center gap-3 p-4 bg-white hover:bg-slate-50 transition-colors text-left ${i < QUICK_ACTIONS.length - 1 ? 'border-b border-slate-50' : ''
@@ -205,13 +221,13 @@ export default function TeacherHomePage() {
             style={{ animationDelay: '120ms' }}
           >
             <div className="flex items-center justify-between mb-2 px-1">
-              <p className="text-xs font-800 text-slate-400 uppercase tracking-widest">Top performers</p>
+              <p className="text-xs font-800 text-slate-400 uppercase tracking-widest">{t('th_top_performers')}</p>
               <button
                 type="button"
                 onClick={() => router.push('/teacher/analytics')}
                 className="text-xs font-700 text-indigo-500 hover:underline"
               >
-                Full analytics →
+                {t('th_full_analytics')}
               </button>
             </div>
             <div className="card p-0 overflow-hidden">
@@ -233,11 +249,11 @@ export default function TeacherHomePage() {
                   <div className="flex-1 min-w-0 text-left">
                     <p className="text-sm font-700 text-slate-800 truncate">{s.name}</p>
                     <p className="text-[11px] text-slate-400 mt-0.5">
-                      Class {s.cls}
-                      {s.scorePct != null && ` · ${s.scorePct}% avg`}
+                      {t('quiz_classN', { n: s.cls })}
+                      {s.scorePct != null && ` · ${t('ta_avg_suffix', { pct: s.scorePct })}`}
                     </p>
                   </div>
-                  <span className="text-sm font-800 text-indigo-600 shrink-0">{s.xp} XP</span>
+                  <span className="text-sm font-800 text-indigo-600 shrink-0">{t('lb_xp', { n: s.xp })}</span>
                   <ChevronRight size={14} className="text-slate-300 shrink-0" />
                 </button>
               ))}
@@ -253,7 +269,7 @@ export default function TeacherHomePage() {
           >
             <div className="flex items-center justify-between mb-2 px-1">
               <p className="text-xs font-800 text-rose-400 uppercase tracking-widest flex items-center gap-1.5">
-                <Flame size={11} /> Needs attention
+                <Flame size={11} /> {t('th_needs_attention')}
               </p>
             </div>
             <div className="card p-0 overflow-hidden border border-rose-100">
@@ -266,14 +282,14 @@ export default function TeacherHomePage() {
                     }`}
                 >
                   <div className="w-9 h-9 rounded-full bg-rose-100 flex items-center justify-center shrink-0">
-                    <span className="text-rose-600 font-800 text-sm">{s.name.charAt(0)}</span>
+                    <span className="text-rose-600 font-800 text-sm">{(s.name || '?').charAt(0)}</span>
                   </div>
                   <div className="flex-1 min-w-0 text-left">
                     <p className="text-sm font-700 text-slate-800 truncate">{s.name}</p>
                     <p className="text-[11px] text-slate-400 mt-0.5">
                       {s.scorePct != null && s.scorePct < 50
-                        ? `Low quiz avg: ${s.scorePct}%`
-                        : 'No activity streak'}
+                        ? t('th_low_quiz', { pct: s.scorePct })
+                        : t('th_no_act_streak')}
                     </p>
                   </div>
                   <Award size={14} className="text-rose-300 shrink-0" />
@@ -285,7 +301,7 @@ export default function TeacherHomePage() {
                   onClick={() => router.push('/teacher/students')}
                   className="w-full p-3 text-xs font-700 text-rose-400 hover:bg-rose-50 transition-colors text-center"
                 >
-                  +{atRisk.length - 4} more → View all students
+                  {t('th_more_students', { n: atRisk.length - 4 })}
                 </button>
               )}
             </div>
@@ -299,8 +315,8 @@ export default function TeacherHomePage() {
             (st.weekBars ?? []).forEach((b, i) => { if (b?.done) heatByDay[i]++; });
           });
           const maxH = Math.max(1, ...heatByDay);
-          const labels = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
           const anyActivity = heatByDay.some(v => v > 0);
+          const activeDays = heatByDay.filter(v => v > 0).length;
           if (!anyActivity) return null;
           return (
             <div
@@ -309,14 +325,14 @@ export default function TeacherHomePage() {
             >
               <div className="flex items-center justify-between mb-3">
                 <p className="font-700 text-sm text-slate-700 flex items-center gap-1.5">
-                  <TrendingUp size={14} className="text-indigo-400" /> Class activity this week
+                  <TrendingUp size={14} className="text-indigo-400" /> {t('th_class_activity_week')}
                 </p>
                 <button
                   type="button"
                   onClick={() => router.push('/teacher/analytics')}
                   className="text-xs font-700 text-indigo-400 hover:text-indigo-600 transition-colors"
                 >
-                  Details →
+                  {t('th_details')}
                 </button>
               </div>
               <div className="flex items-end justify-between gap-2 h-14">
@@ -331,12 +347,14 @@ export default function TeacherHomePage() {
                         opacity: count > 0 ? 1 : 0.6,
                       }}
                     />
-                    <span className="text-[9px] font-700 text-slate-400">{labels[i]}</span>
+                    <span className="text-[9px] font-700 text-slate-400">{t(`prog_wd${i}`)}</span>
                   </div>
                 ))}
               </div>
               <p className="text-[10px] text-slate-400 mt-2">
-                {heatByDay.filter(v => v > 0).length} day{heatByDay.filter(v => v > 0).length !== 1 ? 's' : ''} with activity · bar height = student count
+                {activeDays === 1
+                  ? t('th_heat_days_one')
+                  : t('th_heat_days_many', { n: activeDays })}
               </p>
             </div>
           );

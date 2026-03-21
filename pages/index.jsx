@@ -2,6 +2,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/router';
 import { useAuth } from '../hooks/useAuth';
+import { useI18n } from '../hooks/useI18n';
 import { signInWithGoogle } from '../services/firebase';
 import Button from '../components/ui/Button';
 import Spinner from '../components/ui/Spinner';
@@ -15,16 +16,42 @@ const LANGUAGES = [
 ];
 
 const ROLES = [
-  { id: 'student', label: 'Student',  icon: GraduationCap, desc: 'Learn & practice', gradient: 'from-brand-400 to-brand-600' },
-  { id: 'teacher', label: 'Teacher',  icon: BookOpen,      desc: 'Teach & monitor',  gradient: 'from-indigo-400 to-indigo-600' },
-  { id: 'parent',  label: 'Parent',   icon: Users,         desc: 'Track & support',  gradient: 'from-amber-400 to-amber-600' },
+  { id: 'student', icon: GraduationCap, gradient: 'from-brand-400 to-brand-600' },
+  { id: 'teacher', icon: BookOpen, gradient: 'from-indigo-400 to-indigo-600' },
+  { id: 'parent', icon: Users, gradient: 'from-amber-400 to-amber-600' },
 ];
 
-const BOARDS        = ['CBSE', 'ICSE', 'State Board', 'Other'];
-const STUDENT_GOALS = ['Improve Marks', 'Clear Doubts', 'Exam Preparation', 'Concept Building'];
-const PARENT_GOALS  = ['Improve Child Performance', 'Track Progress', 'Homework Help'];
-const SUBJECTS      = ['Mathematics', 'Science', 'English', 'Social Science', 'Hindi', 'Computer Science'];
-const EXPERIENCE    = ['0-1 years', '2-5 years', '5-10 years', '10+ years'];
+const BOARDS = [
+  { value: 'CBSE', key: 'opt_board_cbse' },
+  { value: 'ICSE', key: 'opt_board_icse' },
+  { value: 'State Board', key: 'opt_board_state' },
+  { value: 'Other', key: 'opt_board_other' },
+];
+const STUDENT_GOALS = [
+  { value: 'Improve Marks', key: 'opt_goal_improveMarks' },
+  { value: 'Clear Doubts', key: 'opt_goal_clearDoubts' },
+  { value: 'Exam Preparation', key: 'opt_goal_examPrep' },
+  { value: 'Concept Building', key: 'opt_goal_concept' },
+];
+const PARENT_GOALS = [
+  { value: 'Improve Child Performance', key: 'opt_pg_improve' },
+  { value: 'Track Progress', key: 'opt_pg_track' },
+  { value: 'Homework Help', key: 'opt_pg_homework' },
+];
+const SUBJECTS = [
+  { value: 'Mathematics', key: 'opt_subj_math' },
+  { value: 'Science', key: 'opt_subj_science' },
+  { value: 'English', key: 'opt_subj_english' },
+  { value: 'Social Science', key: 'opt_subj_social' },
+  { value: 'Hindi', key: 'opt_subj_hindi' },
+  { value: 'Computer Science', key: 'opt_subj_cs' },
+];
+const EXPERIENCE = [
+  { value: '0-1 years', key: 'opt_exp_01' },
+  { value: '2-5 years', key: 'opt_exp_25' },
+  { value: '5-10 years', key: 'opt_exp_510' },
+  { value: '10+ years', key: 'opt_exp_10p' },
+];
 
 // ── localStorage user DB helpers ────────────────────────
 const SS_USERS_KEY = 'ss_registered_users';
@@ -42,8 +69,8 @@ function saveRegisteredUser(email, userData) {
 function findRegisteredUser(email, password) {
   const users = getRegisteredUsers();
   const user = users[email.toLowerCase()];
-  if (!user) return { error: 'No account found with this email. Please register first.' };
-  if (user.password !== password) return { error: 'Incorrect password. Please try again.' };
+  if (!user) return { errorKey: 'err_noAccount' };
+  if (user.password !== password) return { errorKey: 'err_wrongPassword' };
   return { user };
 }
 
@@ -51,6 +78,7 @@ function findRegisteredUser(email, password) {
 
 export default function LoginPage() {
   const { user, loading, setManualUser } = useAuth();
+  const { t, locale, setGuestLocale } = useI18n();
   const router = useRouter();
   const firstInputRef = useRef(null);
 
@@ -94,6 +122,10 @@ export default function LoginPage() {
   }, [user, loading, router]);
 
   useEffect(() => {
+    if (step === 'form') setLang(locale);
+  }, [step, locale]);
+
+  useEffect(() => {
     if (step === 'form' || step === 'login') {
       setTimeout(() => firstInputRef.current?.focus(), 200);
     }
@@ -102,10 +134,15 @@ export default function LoginPage() {
   // ── Handlers ──────────────────────────────────────────
 
   const handleGoogle = async () => {
-    setGError(''); setGLoading(true);
-    try { await signInWithGoogle(); }
-    catch { setGError('Could not sign in with Google.'); }
-    finally { setGLoading(false); }
+    setGError('');
+    setGLoading(true);
+    try {
+      await signInWithGoogle();
+    } catch {
+      setGError(t('err_google'));
+    } finally {
+      setGLoading(false);
+    }
   };
 
   const validateEmail = (e) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e);
@@ -113,14 +150,29 @@ export default function LoginPage() {
 
   // Log in with existing credentials
   const handleLogin = () => {
-    if (!email.trim())    { setMError('Please enter your email.'); return; }
-    if (!validateEmail(email)) { setMError('Please enter a valid email address.'); return; }
-    if (!password)        { setMError('Please enter your password.'); return; }
-    if (password.length < 4) { setMError('Password must be at least 4 characters.'); return; }
+    if (!email.trim()) {
+      setMError(t('err_enterEmail'));
+      return;
+    }
+    if (!validateEmail(email)) {
+      setMError(t('err_validEmail'));
+      return;
+    }
+    if (!password) {
+      setMError(t('err_enterPassword'));
+      return;
+    }
+    if (password.length < 4) {
+      setMError(t('err_pwLength'));
+      return;
+    }
 
     setMError('');
     const result = findRegisteredUser(email, password);
-    if (result.error) { setMError(result.error); return; }
+    if (result.errorKey) {
+      setMError(t(result.errorKey));
+      return;
+    }
 
     // Restore user — omit the password from active session
     const { password: _pw, ...userData } = result.user;
@@ -130,17 +182,34 @@ export default function LoginPage() {
 
   // Register a new account
   const handleRegister = () => {
-    if (!email.trim())    { setMError('Please enter your email.'); return; }
-    if (!validateEmail(email)) { setMError('Please enter a valid email address.'); return; }
-    if (!password)        { setMError('Please create a password.'); return; }
-    if (password.length < 4) { setMError('Password must be at least 4 characters.'); return; }
-    if (!name.trim())     { setMError('Please enter your name.'); return; }
-    if (phone && !validatePhone(phone)) { setMError('Please enter a valid 10-digit phone number.'); return; }
+    if (!email.trim()) {
+      setMError(t('err_enterEmail'));
+      return;
+    }
+    if (!validateEmail(email)) {
+      setMError(t('err_validEmail'));
+      return;
+    }
+    if (!password) {
+      setMError(t('err_createPw'));
+      return;
+    }
+    if (password.length < 4) {
+      setMError(t('err_pwLength'));
+      return;
+    }
+    if (!name.trim()) {
+      setMError(t('err_enterName'));
+      return;
+    }
+    if (phone && !validatePhone(phone)) {
+      setMError(t('err_phoneDigits'));
+      return;
+    }
 
-    // Check if email already exists
     const existing = getRegisteredUsers();
     if (existing[email.toLowerCase()]) {
-      setMError('An account with this email already exists. Please log in instead.');
+      setMError(t('err_emailExists'));
       return;
     }
 
@@ -159,14 +228,26 @@ export default function LoginPage() {
     let userData;
 
     if (role === 'student') {
-      if (!cls) { setMError('Please select your class.'); return; }
+      if (!cls) {
+        setMError(t('err_selectClass'));
+        return;
+      }
       userData = { ...base, class: cls, board, goal };
     } else if (role === 'teacher') {
-      if (!subject) { setMError('Please select your subject.'); return; }
+      if (!subject) {
+        setMError(t('err_selectSubject'));
+        return;
+      }
       userData = { ...base, subject, experience, teachClasses };
     } else {
-      if (!childName.trim()) { setMError("Please enter your child's name."); return; }
-      if (!childClass)       { setMError("Please select your child's class."); return; }
+      if (!childName.trim()) {
+        setMError(t('err_childName'));
+        return;
+      }
+      if (!childClass) {
+        setMError(t('err_childClass'));
+        return;
+      }
       userData = { ...base, childName: childName.trim(), childClass, goal: parentGoal };
     }
 
@@ -182,12 +263,14 @@ export default function LoginPage() {
     setTeachClasses(prev => prev.includes(c) ? prev.filter(x => x !== c) : [...prev, c]);
   };
 
-  const submitLabel = role === 'student' ? 'Start Learning' : role === 'teacher' ? 'Continue as Teacher' : 'View Child Dashboard';
+  const submitLabel =
+    role === 'student' ? t('auth_startLearning') : role === 'teacher' ? t('auth_continueTeacher') : t('auth_viewChildDash');
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-slate-50">
+      <div className="min-h-screen flex flex-col items-center justify-center bg-slate-50 gap-2">
         <Spinner size="lg" />
+        <p className="text-xs text-slate-400">{t('auth_checkingSession')}</p>
       </div>
     );
   }
@@ -206,7 +289,7 @@ export default function LoginPage() {
         <h1 className="font-display font-900 text-3xl text-slate-900 tracking-tight">
           Shiksha<span className="text-brand-500">Setu</span>
         </h1>
-        <p className="mt-1.5 text-slate-500 text-sm">Your smart learning companion</p>
+        <p className="mt-1.5 text-slate-500 text-sm">{t('auth_tagline')}</p>
       </div>
 
       <div className="w-full max-w-sm">
@@ -216,18 +299,39 @@ export default function LoginPage() {
            ══════════════════════════════════════════════════ */}
         {step === 'login' && (
           <div className="animate-fade-up" style={{ animationDelay: '80ms' }}>
-            <p className="text-center text-sm font-700 text-slate-600 mb-5">Welcome back! Log in to continue.</p>
+            <p className="text-center text-sm font-700 text-slate-600 mb-5">{t('auth_welcomeBack')}</p>
+
+            <div className="mb-5">
+              <p className="text-xs font-600 text-slate-500 mb-1">{t('auth_uiLanguage')}</p>
+              <p className="text-[10px] text-slate-400 mb-2">{t('auth_uiLanguageHint')}</p>
+              <div className="flex gap-2">
+                {LANGUAGES.map((l) => (
+                  <button
+                    key={l.value}
+                    type="button"
+                    onClick={() => setGuestLocale(l.value)}
+                    className={`flex-1 py-2 rounded-xl text-sm font-600 border transition-all ${
+                      locale === l.value
+                        ? 'bg-brand-500 text-white border-brand-500'
+                        : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300'
+                    }`}
+                  >
+                    {l.label}
+                  </button>
+                ))}
+              </div>
+            </div>
 
             <div className="space-y-4">
               <div>
-                <label className="block text-sm font-600 text-slate-600 mb-1.5">Email</label>
+                <label className="block text-sm font-600 text-slate-600 mb-1.5">{t('auth_email')}</label>
                 <div className="relative">
                   <Mail size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
                   <input
                     ref={firstInputRef}
                     className="input pl-10"
                     type="email"
-                    placeholder="you@example.com"
+                    placeholder={t('auth_placeholderEmail')}
                     value={email}
                     onChange={e => setEmail(e.target.value)}
                   />
@@ -235,13 +339,13 @@ export default function LoginPage() {
               </div>
 
               <div>
-                <label className="block text-sm font-600 text-slate-600 mb-1.5">Password</label>
+                <label className="block text-sm font-600 text-slate-600 mb-1.5">{t('auth_password')}</label>
                 <div className="relative">
                   <Lock size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
                   <input
                     className="input pl-10 pr-10"
                     type={showPw ? 'text' : 'password'}
-                    placeholder="Enter your password"
+                    placeholder={t('auth_placeholderPw')}
                     value={password}
                     onChange={e => setPassword(e.target.value)}
                   />
@@ -254,14 +358,14 @@ export default function LoginPage() {
               {mError && <p className="text-rose-500 text-sm">{mError}</p>}
 
               <Button variant="primary" className="w-full text-base" onClick={handleLogin}>
-                Log In <ArrowRight size={16} className="ml-1" />
+                {t('auth_logIn')} <ArrowRight size={16} className="ml-1" />
               </Button>
             </div>
 
             <div className="mt-5">
               <div className="flex items-center gap-3 mb-4">
                 <div className="flex-1 h-px bg-slate-200" />
-                <span className="text-xs font-600 text-slate-400 uppercase tracking-wider">or</span>
+                <span className="text-xs font-600 text-slate-400 uppercase tracking-wider">{t('auth_or')}</span>
                 <div className="flex-1 h-px bg-slate-200" />
               </div>
 
@@ -278,15 +382,15 @@ export default function LoginPage() {
                     <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
                   </svg>
                 )}
-                {gLoading ? 'Signing in...' : 'Continue with Google'}
+                {gLoading ? t('auth_googleLoading') : t('auth_google')}
               </button>
               {gError && <p className="text-rose-500 text-sm text-center mt-2">{gError}</p>}
             </div>
 
             <p className="text-center text-sm text-slate-500 mt-6">
-              New here?{' '}
+              {t('auth_newHere')}{' '}
               <button onClick={() => { setMError(''); setStep('role'); }} className="text-brand-600 font-700 hover:underline">
-                Create an account
+                {t('auth_createAccount')}
               </button>
             </p>
           </div>
@@ -298,12 +402,12 @@ export default function LoginPage() {
         {step === 'role' && (
           <div className="animate-fade-up" style={{ animationDelay: '80ms' }}>
             <button onClick={() => { setMError(''); setStep('login'); }} className="flex items-center gap-1 text-sm font-600 text-slate-500 hover:text-brand-600 mb-4 transition-colors">
-              <ArrowLeft size={16} /> Back to login
+              <ArrowLeft size={16} /> {t('auth_backLogin')}
             </button>
 
-            <p className="text-center text-sm font-700 text-slate-600 mb-4">I am a...</p>
+            <p className="text-center text-sm font-700 text-slate-600 mb-4">{t('auth_iAmA')}</p>
             <div className="grid grid-cols-3 gap-3 mb-6">
-              {ROLES.map(({ id, label, icon: Icon, desc, gradient }) => (
+              {ROLES.map(({ id, icon: Icon, gradient }) => (
                 <button
                   key={id}
                   onClick={() => setRole(id)}
@@ -321,8 +425,8 @@ export default function LoginPage() {
                   }`}>
                     <Icon size={22} className={role === id ? 'text-white' : 'text-slate-500'} />
                   </div>
-                  <p className={`relative font-800 text-sm ${role === id ? 'text-slate-900' : 'text-slate-600'}`}>{label}</p>
-                  <p className="relative text-[10px] font-500 text-slate-400 mt-0.5">{desc}</p>
+                  <p className={`relative font-800 text-sm ${role === id ? 'text-slate-900' : 'text-slate-600'}`}>{t(`role_${id}`)}</p>
+                  <p className="relative text-[10px] font-500 text-slate-400 mt-0.5">{t(`role_${id}Desc`)}</p>
                   {role === id && (
                     <div className={`absolute -top-1 -right-1 w-5 h-5 rounded-full bg-gradient-to-br ${gradient} flex items-center justify-center`}>
                       <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M2 5l2 2 4-4" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
@@ -333,7 +437,7 @@ export default function LoginPage() {
             </div>
 
             <Button variant="primary" className="w-full text-base" onClick={() => { setMError(''); setStep('form'); }}>
-              Continue <ArrowRight size={16} className="ml-1" />
+              {t('auth_continue')} <ArrowRight size={16} className="ml-1" />
             </Button>
           </div>
         )}
@@ -344,7 +448,7 @@ export default function LoginPage() {
         {step === 'form' && (
           <div className="animate-fade-up">
             <button onClick={() => setStep('role')} className="flex items-center gap-1 text-sm font-600 text-slate-500 hover:text-brand-600 mb-5 transition-colors">
-              <ArrowLeft size={16} /> Change role
+              <ArrowLeft size={16} /> {t('auth_changeRole')}
             </button>
 
             <div className="flex items-center gap-2 mb-5 px-1">
@@ -352,21 +456,23 @@ export default function LoginPage() {
                 {(() => { const R = ROLES.find(r => r.id === role).icon; return <R size={16} className="text-white" />; })()}
               </div>
               <div>
-                <p className="text-xs font-600 text-slate-400 uppercase tracking-wider">{role} Registration</p>
+                <p className="text-xs font-600 text-slate-400 uppercase tracking-wider">
+                  {t(`role_${role}`)} · {t('auth_registration')}
+                </p>
               </div>
             </div>
 
             <div className="space-y-4">
               {/* ── Email & Password ─── */}
               <div>
-                <label className="block text-sm font-600 text-slate-600 mb-1.5">Email</label>
+                <label className="block text-sm font-600 text-slate-600 mb-1.5">{t('auth_email')}</label>
                 <div className="relative">
                   <Mail size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
                   <input
                     ref={firstInputRef}
                     className="input pl-10"
                     type="email"
-                    placeholder="you@example.com"
+                    placeholder={t('auth_placeholderEmail')}
                     value={email}
                     onChange={e => setEmail(e.target.value)}
                   />
@@ -374,13 +480,13 @@ export default function LoginPage() {
               </div>
 
               <div>
-                <label className="block text-sm font-600 text-slate-600 mb-1.5">Create Password</label>
+                <label className="block text-sm font-600 text-slate-600 mb-1.5">{t('auth_createPw')}</label>
                 <div className="relative">
                   <Lock size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
                   <input
                     className="input pl-10 pr-10"
                     type={showPw ? 'text' : 'password'}
-                    placeholder="At least 4 characters"
+                    placeholder={t('auth_pwHint')}
                     value={password}
                     onChange={e => setPassword(e.target.value)}
                   />
@@ -392,10 +498,10 @@ export default function LoginPage() {
 
               {/* ── Name ─── */}
               <div>
-                <label className="block text-sm font-600 text-slate-600 mb-1.5">Full Name</label>
+                <label className="block text-sm font-600 text-slate-600 mb-1.5">{t('auth_fullName')}</label>
                 <input
                   className="input"
-                  placeholder={role === 'parent' ? 'Parent Name' : 'e.g. Priya Sharma'}
+                  placeholder={role === 'parent' ? t('auth_parentNamePh') : t('auth_namePh')}
                   value={name}
                   onChange={e => setName(e.target.value)}
                 />
@@ -403,10 +509,10 @@ export default function LoginPage() {
 
               {/* ── Phone ─── */}
               <div>
-                <label className="block text-sm font-600 text-slate-600 mb-1.5">Phone Number</label>
+                <label className="block text-sm font-600 text-slate-600 mb-1.5">{t('auth_phone')}</label>
                 <input
                   className="input"
-                  placeholder="10-digit mobile number"
+                  placeholder={t('auth_phonePh')}
                   type="tel"
                   maxLength={10}
                   value={phone}
@@ -414,11 +520,39 @@ export default function LoginPage() {
                 />
               </div>
 
+              <div>
+                <label className="block text-sm font-600 text-slate-600 mb-2">{t('auth_appLanguage')}</label>
+                <p className="text-[11px] text-slate-400 mb-2">{t('auth_appLanguageHint')}</p>
+                <div className="flex gap-2">
+                  {LANGUAGES.map((l) => (
+                    <button
+                      key={l.value}
+                      type="button"
+                      onClick={() => {
+                        setLang(l.value);
+                        setGuestLocale(l.value);
+                      }}
+                      className={`flex-1 py-2.5 rounded-xl text-sm font-600 border transition-all ${
+                        lang === l.value
+                          ? role === 'teacher'
+                            ? 'bg-indigo-500 text-white border-indigo-500'
+                            : role === 'parent'
+                              ? 'bg-amber-500 text-white border-amber-500'
+                              : 'bg-brand-500 text-white border-brand-500'
+                          : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300'
+                      }`}
+                    >
+                      {l.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
               {/* ════════════ STUDENT FIELDS ════════════ */}
               {role === 'student' && (
                 <>
                   <div>
-                    <label className="block text-sm font-600 text-slate-600 mb-2">Select Class</label>
+                    <label className="block text-sm font-600 text-slate-600 mb-2">{t('auth_selectClass')}</label>
                     <div className="flex flex-wrap gap-2">
                       {CLASSES.map(c => (
                         <button key={c} onClick={() => setCls(c)}
@@ -430,42 +564,30 @@ export default function LoginPage() {
                   </div>
 
                   <div>
-                    <label className="block text-sm font-600 text-slate-600 mb-2">Language</label>
-                    <div className="flex gap-2">
-                      {LANGUAGES.map(l => (
-                        <button key={l.value} onClick={() => setLang(l.value)}
-                          className={`flex-1 py-2.5 rounded-xl text-sm font-600 border transition-all ${
-                            lang === l.value ? 'bg-brand-500 text-white border-brand-500' : 'bg-white text-slate-600 border-slate-200 hover:border-brand-300'
-                          }`}>{l.label}</button>
+                    <label className="block text-sm font-600 text-slate-600 mb-1.5">{t('auth_school')}</label>
+                    <input className="input" placeholder={t('auth_schoolPhStudent')} value={school} onChange={e => setSchool(e.target.value)} />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-600 text-slate-600 mb-2">{t('auth_board')}</label>
+                    <div className="flex flex-wrap gap-2">
+                      {BOARDS.map((b) => (
+                        <button key={b.value} onClick={() => setBoard(b.value)}
+                          className={`px-3 py-2 rounded-xl text-sm font-600 border transition-all ${
+                            board === b.value ? 'bg-brand-500 text-white border-brand-500' : 'bg-white text-slate-600 border-slate-200 hover:border-brand-300'
+                          }`}>{t(b.key)}</button>
                       ))}
                     </div>
                   </div>
 
                   <div>
-                    <label className="block text-sm font-600 text-slate-600 mb-1.5">School Name</label>
-                    <input className="input" placeholder="e.g. Kendriya Vidyalaya" value={school} onChange={e => setSchool(e.target.value)} />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-600 text-slate-600 mb-2">Board</label>
+                    <label className="block text-sm font-600 text-slate-600 mb-2">{t('auth_learningGoal')}</label>
                     <div className="flex flex-wrap gap-2">
-                      {BOARDS.map(b => (
-                        <button key={b} onClick={() => setBoard(b)}
+                      {STUDENT_GOALS.map((g) => (
+                        <button key={g.value} onClick={() => setGoal(g.value)}
                           className={`px-3 py-2 rounded-xl text-sm font-600 border transition-all ${
-                            board === b ? 'bg-brand-500 text-white border-brand-500' : 'bg-white text-slate-600 border-slate-200 hover:border-brand-300'
-                          }`}>{b}</button>
-                      ))}
-                    </div>
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-600 text-slate-600 mb-2">Learning Goal</label>
-                    <div className="flex flex-wrap gap-2">
-                      {STUDENT_GOALS.map(g => (
-                        <button key={g} onClick={() => setGoal(g)}
-                          className={`px-3 py-2 rounded-xl text-sm font-600 border transition-all ${
-                            goal === g ? 'bg-brand-500 text-white border-brand-500' : 'bg-white text-slate-600 border-slate-200 hover:border-brand-300'
-                          }`}>{g}</button>
+                            goal === g.value ? 'bg-brand-500 text-white border-brand-500' : 'bg-white text-slate-600 border-slate-200 hover:border-brand-300'
+                          }`}>{t(g.key)}</button>
                       ))}
                     </div>
                   </div>
@@ -476,36 +598,39 @@ export default function LoginPage() {
               {role === 'teacher' && (
                 <>
                   <div>
-                    <label className="block text-sm font-600 text-slate-600 mb-2">Subject Expertise</label>
+                    <label className="block text-sm font-600 text-slate-600 mb-2">{t('auth_subjectExpertise')}</label>
                     <div className="flex flex-wrap gap-2">
-                      {SUBJECTS.map(s => (
-                        <button key={s} onClick={() => setSubject(s)}
+                      {SUBJECTS.map((s) => (
+                        <button key={s.value} onClick={() => setSubject(s.value)}
                           className={`px-3 py-2 rounded-xl text-sm font-600 border transition-all ${
-                            subject === s ? 'bg-indigo-500 text-white border-indigo-500' : 'bg-white text-slate-600 border-slate-200 hover:border-indigo-300'
-                          }`}>{s}</button>
+                            subject === s.value ? 'bg-indigo-500 text-white border-indigo-500' : 'bg-white text-slate-600 border-slate-200 hover:border-indigo-300'
+                          }`}>{t(s.key)}</button>
                       ))}
                     </div>
                   </div>
 
                   <div>
-                    <label className="block text-sm font-600 text-slate-600 mb-1.5">School Name</label>
-                    <input className="input" placeholder="e.g. Delhi Public School" value={school} onChange={e => setSchool(e.target.value)} />
+                    <label className="block text-sm font-600 text-slate-600 mb-1.5">{t('auth_school')}</label>
+                    <input className="input" placeholder={t('auth_schoolPhTeacher')} value={school} onChange={e => setSchool(e.target.value)} />
                   </div>
 
                   <div>
-                    <label className="block text-sm font-600 text-slate-600 mb-2">Years of Experience</label>
+                    <label className="block text-sm font-600 text-slate-600 mb-2">{t('auth_experience')}</label>
                     <div className="flex flex-wrap gap-2">
-                      {EXPERIENCE.map(ex => (
-                        <button key={ex} onClick={() => setExperience(ex)}
+                      {EXPERIENCE.map((ex) => (
+                        <button key={ex.value} onClick={() => setExperience(ex.value)}
                           className={`px-3 py-2 rounded-xl text-sm font-600 border transition-all ${
-                            experience === ex ? 'bg-indigo-500 text-white border-indigo-500' : 'bg-white text-slate-600 border-slate-200 hover:border-indigo-300'
-                          }`}>{ex}</button>
+                            experience === ex.value ? 'bg-indigo-500 text-white border-indigo-500' : 'bg-white text-slate-600 border-slate-200 hover:border-indigo-300'
+                          }`}>{t(ex.key)}</button>
                       ))}
                     </div>
                   </div>
 
                   <div>
-                    <label className="block text-sm font-600 text-slate-600 mb-2">Classes Teaching <span className="text-slate-400 font-500">(select multiple)</span></label>
+                    <label className="block text-sm font-600 text-slate-600 mb-2">
+                      {t('auth_classesTeaching')}{' '}
+                      <span className="text-slate-400 font-500">{t('auth_selectMultiple')}</span>
+                    </label>
                     <div className="flex flex-wrap gap-2">
                       {CLASSES.map(c => (
                         <button key={c} onClick={() => toggleTeachClass(c)}
@@ -522,12 +647,12 @@ export default function LoginPage() {
               {role === 'parent' && (
                 <>
                   <div>
-                    <label className="block text-sm font-600 text-slate-600 mb-1.5">Child's Name</label>
-                    <input className="input" placeholder="e.g. Aarav" value={childName} onChange={e => setChildName(e.target.value)} />
+                    <label className="block text-sm font-600 text-slate-600 mb-1.5">{t('auth_childName')}</label>
+                    <input className="input" placeholder={t('auth_childNamePh')} value={childName} onChange={e => setChildName(e.target.value)} />
                   </div>
 
                   <div>
-                    <label className="block text-sm font-600 text-slate-600 mb-2">Child's Class</label>
+                    <label className="block text-sm font-600 text-slate-600 mb-2">{t('auth_childClass')}</label>
                     <div className="flex flex-wrap gap-2">
                       {CLASSES.map(c => (
                         <button key={c} onClick={() => setChildClass(c)}
@@ -539,18 +664,18 @@ export default function LoginPage() {
                   </div>
 
                   <div>
-                    <label className="block text-sm font-600 text-slate-600 mb-1.5">School Name</label>
-                    <input className="input" placeholder="e.g. Kendriya Vidyalaya" value={school} onChange={e => setSchool(e.target.value)} />
+                    <label className="block text-sm font-600 text-slate-600 mb-1.5">{t('auth_school')}</label>
+                    <input className="input" placeholder={t('auth_schoolPhStudent')} value={school} onChange={e => setSchool(e.target.value)} />
                   </div>
 
                   <div>
-                    <label className="block text-sm font-600 text-slate-600 mb-2">Your Goal</label>
+                    <label className="block text-sm font-600 text-slate-600 mb-2">{t('auth_yourGoal')}</label>
                     <div className="flex flex-wrap gap-2">
-                      {PARENT_GOALS.map(g => (
-                        <button key={g} onClick={() => setParentGoal(g)}
+                      {PARENT_GOALS.map((g) => (
+                        <button key={g.value} onClick={() => setParentGoal(g.value)}
                           className={`px-3 py-2 rounded-xl text-sm font-600 border transition-all ${
-                            parentGoal === g ? 'bg-amber-500 text-white border-amber-500' : 'bg-white text-slate-600 border-slate-200 hover:border-amber-300'
-                          }`}>{g}</button>
+                            parentGoal === g.value ? 'bg-amber-500 text-white border-amber-500' : 'bg-white text-slate-600 border-slate-200 hover:border-amber-300'
+                          }`}>{t(g.key)}</button>
                       ))}
                     </div>
                   </div>
@@ -564,9 +689,9 @@ export default function LoginPage() {
               </Button>
 
               <p className="text-center text-sm text-slate-500">
-                Already have an account?{' '}
+                {t('auth_alreadyHave')}{' '}
                 <button onClick={() => { setMError(''); setStep('login'); }} className="text-brand-600 font-700 hover:underline">
-                  Log in
+                  {t('auth_logInLink')}
                 </button>
               </p>
             </div>
@@ -576,7 +701,7 @@ export default function LoginPage() {
 
       {/* Footer */}
       <p className="mt-8 text-slate-400 text-xs text-center animate-fade-in" style={{ animationDelay: '200ms' }}>
-        Built for learners across Bharat
+        {t('auth_footer')}
       </p>
     </div>
   );

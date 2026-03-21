@@ -3,44 +3,41 @@ import { useState, useRef, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import { Send, Volume2, Sparkles, AlertTriangle, Lightbulb } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
+import { useI18n } from '../hooks/useI18n';
 import { sendChat } from '../services/api';
 import AppShell from '../components/layout/AppShell';
 import Avatar from '../components/ui/Avatar';
 import Toast from '../components/ui/Toast';
 import { getProgressUserId, recordChatTurn } from '../services/userProgress';
 
-const SUGGESTIONS = [
-  'What is photosynthesis?',
-  'Explain the water cycle',
-  'How do fractions work?',
-  'What caused World War II?',
-];
+const CHAT_SUG_KEYS = ['chat_sug1', 'chat_sug2', 'chat_sug3', 'chat_sug4'];
 
 function speak(text, lang) {
   if (!window.speechSynthesis) return;
   window.speechSynthesis.cancel();
   const u  = new SpeechSynthesisUtterance(text);
-  u.lang   = lang === 'hindi' ? 'hi-IN' : 'en-IN';
+  u.lang   = lang === 'hindi' ? 'hi-IN' : lang === 'marathi' ? 'mr-IN' : 'en-IN';
   u.rate   = 0.88;
   window.speechSynthesis.speak(u);
 }
 
 // Formats bot reply: answer + steps bullet list
-function formatBotText(data) {
+function formatBotText(data, t) {
   let out = data.answer || '';
   if (data.steps?.length) {
     out += '\n\n' + data.steps.map((s, i) => `${i + 1}. ${s}`).join('\n');
   }
-  if (data.tip) out += `\n\nTip: ${data.tip}`;
+  if (data.tip) out += `\n\n${t('chat_tipPrefix')} ${data.tip}`;
   return out.trim();
 }
 
 export default function ChatPage() {
   const { user, loading } = useAuth();
+  const { t, locale } = useI18n();
   const router = useRouter();
 
-  const [messages, setMessages] = useState([
-    { role: 'bot', text: `Hi! I'm your ShikshaSetu assistant.\nAsk me any question — I'll explain it clearly, step by step.` },
+  const [messages, setMessages] = useState(() => [
+    { role: 'bot', text: t('chat_welcome') },
   ]);
   const [input,   setInput]   = useState('');
   const [sending, setSending] = useState(false);
@@ -51,6 +48,14 @@ export default function ChatPage() {
   useEffect(() => {
     if (!loading && !user) router.replace('/');
   }, [user, loading]);
+
+  useEffect(() => {
+    setMessages((m) =>
+      m.length === 1 && m[0].role === 'bot'
+        ? [{ role: 'bot', text: t('chat_welcome') }]
+        : m,
+    );
+  }, [locale, t]);
 
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -64,11 +69,11 @@ export default function ChatPage() {
     setSending(true);
     try {
       const data = await sendChat(msg, user?.language || 'english');
-      setMessages(m => [...m, { role: 'bot', text: formatBotText(data) }]);
+      setMessages(m => [...m, { role: 'bot', text: formatBotText(data, t) }]);
       const pid = getProgressUserId(user);
       if (pid) recordChatTurn(pid, user);
     } catch {
-      setMessages(m => [...m, { role: 'bot', text: 'Could not reach the server. Is the backend running?' }]);
+      setMessages(m => [...m, { role: 'bot', text: t('chat_serverError') }]);
     } finally {
       setSending(false);
       setTimeout(() => inputRef.current?.focus(), 100);
@@ -80,7 +85,7 @@ export default function ChatPage() {
   };
 
   return (
-    <AppShell title="Ask a Doubt">
+    <AppShell title={t('page_askDoubt')}>
       <div className="flex flex-col h-full">
 
         {/* ── Messages ──────────────────────────────────── */}
@@ -89,15 +94,15 @@ export default function ChatPage() {
           {/* Suggestion chips — shown only at start */}
           {messages.length === 1 && (
             <div className="animate-fade-up">
-              <p className="text-xs font-700 text-slate-400 uppercase tracking-wide mb-2">Try asking...</p>
+              <p className="text-xs font-700 text-slate-400 uppercase tracking-wide mb-2">{t('chat_tryAsking')}</p>
               <div className="flex flex-wrap gap-2">
-                {SUGGESTIONS.map(s => (
+                {CHAT_SUG_KEYS.map((key) => (
                   <button
-                    key={s}
-                    onClick={() => send(s)}
+                    key={key}
+                    onClick={() => send(t(key))}
                     className="text-sm bg-white border border-slate-200 text-slate-600 px-3 py-1.5 rounded-xl shadow-card hover:border-brand-300 hover:text-brand-600 transition-colors font-500"
                   >
-                    {s}
+                    {t(key)}
                   </button>
                 ))}
               </div>
@@ -126,7 +131,7 @@ export default function ChatPage() {
                     onClick={() => speak(msg.text, user?.language)}
                     className="mt-1.5 ml-1 flex items-center gap-1 text-xs text-slate-400 hover:text-brand-500 transition-colors opacity-0 group-hover:opacity-100"
                   >
-                    <Volume2 size={11} /> Listen
+                    <Volume2 size={11} /> {t('chat_listen')}
                   </button>
                 )}
               </div>
@@ -161,7 +166,7 @@ export default function ChatPage() {
           <textarea
             ref={inputRef}
             className="flex-1 bg-slate-50 border border-slate-200 rounded-2xl px-4 py-3 text-sm text-slate-800 placeholder-slate-400 focus:bg-white focus:border-brand-400 transition-all resize-none outline-none min-h-[46px] max-h-32 leading-relaxed"
-            placeholder="Ask any question..."
+            placeholder={t('chat_placeholder')}
             value={input}
             onChange={e => setInput(e.target.value)}
             onKeyDown={handleKey}
