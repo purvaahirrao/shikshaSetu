@@ -17,7 +17,14 @@ export default function AppShell({ children, title, right, back, onBack }) {
               </svg>
             </button>
           )}
-          <h1 className="font-display font-800 text-slate-800 text-lg flex-1">{title}</h1>
+          <div className="flex items-center gap-2 flex-1">
+            <img 
+              src="https://user5301.na.imgto.link/public/20260321/az0pmpqr3wttpr2cmzwy7w-az0pmpqrar-qd1us4ehj7a-1.avif" 
+              alt="Logo" 
+              className="h-6 w-6 object-contain"
+            />
+            <h1 className="font-display font-800 text-slate-800 text-lg">{title}</h1>
+          </div>
           {right && <div>{right}</div>}
         </header>
       )}
