@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/router';
 import Link from 'next/link';
 import { useAuth } from '../hooks/useAuth';
@@ -6,7 +6,7 @@ import AppShell from '../components/layout/AppShell';
 import Avatar from '../components/ui/Avatar';
 import Button from '../components/ui/Button';
 import Spinner from '../components/ui/Spinner';
-import { LogOut, Settings, User, Bell, Shield, ChevronRight, Zap, Star, Award, GraduationCap, BookOpen, Users } from 'lucide-react';
+import { LogOut, Settings, User, Bell, Shield, ChevronRight, Zap, Star, Award, GraduationCap, BookOpen, Users, Camera, Lock, Eye, EyeOff, Edit3, X, CheckCircle2, Phone, School, Target, BarChart3 } from 'lucide-react';
 
 const CLASSES = ['1','2','3','4','5','6','7','8','9','10'];
 const LANGUAGES = [
@@ -14,213 +14,362 @@ const LANGUAGES = [
   { value: 'hindi',   label: 'हिंदी'   },
   { value: 'marathi', label: 'मराठी'   },
 ];
+const BOARDS = ['CBSE', 'ICSE', 'State Board', 'Other'];
+const STUDENT_GOALS = ['Improve Marks', 'Clear Doubts', 'Exam Preparation', 'Concept Building'];
+const PARENT_GOALS = ['Improve Child Performance', 'Track Progress', 'Homework Help'];
+const SUBJECTS = ['Mathematics', 'Science', 'English', 'Social Science', 'Hindi', 'Computer Science'];
+const EXPERIENCE = ['0-1 years', '2-5 years', '5-10 years', '10+ years'];
 
 export default function ProfilePage() {
   const { user, loading, logout, setManualUser } = useAuth();
   const router = useRouter();
+  const fileInputRef = useRef(null);
 
-  const [isEditing, setIsEditing] = useState(false);
-  const [name, setName] = useState('');
-  const [cls, setCls] = useState('');
-  const [lang, setLang] = useState('english');
+  const [isEditing, setIsEditing]       = useState(false);
+  const [showPwForm, setShowPwForm]     = useState(false);
+  const [pwSuccess, setPwSuccess]       = useState('');
+
+  // Editable fields
+  const [name,    setName]    = useState('');
+  const [phone,   setPhone]   = useState('');
+  const [school,  setSchool]  = useState('');
+  const [cls,     setCls]     = useState('');
+  const [lang,    setLang]    = useState('english');
+  const [board,   setBoard]   = useState('');
+  const [goal,    setGoal]    = useState('');
+  const [subject, setSubject] = useState('');
+  const [exp,     setExp]     = useState('');
+  const [childName,  setChildName]  = useState('');
+  const [childClass, setChildClass] = useState('');
+  const [parentGoal, setParentGoal] = useState('');
+  const [profilePic, setProfilePic] = useState('');
+
+  // Password change
+  const [oldPw,     setOldPw]     = useState('');
+  const [newPw,     setNewPw]     = useState('');
+  const [confirmPw, setConfirmPw] = useState('');
+  const [showOldPw, setShowOldPw] = useState(false);
+  const [showNewPw, setShowNewPw] = useState(false);
+  const [pwError,   setPwError]   = useState('');
 
   useEffect(() => {
-    if (!loading && !user) {
-      router.replace('/');
-    } else if (user) {
+    if (!loading && !user) { router.replace('/'); return; }
+    if (user) {
       setName(user.name || '');
+      setPhone(user.phone || '');
+      setSchool(user.school || '');
       setCls(user.class || '');
       setLang(user.language || 'english');
-      
-      // Load preferences for Google users from local storage if needed
-      if (user.source === 'google') {
-        const prefs = localStorage.getItem(`ss_prefs_${user.uid}`);
-        if (prefs) {
-          const parsed = JSON.parse(prefs);
-          if (parsed.class) setCls(parsed.class);
-          if (parsed.language) setLang(parsed.language);
-        }
-      }
+      setBoard(user.board || '');
+      setGoal(user.goal || '');
+      setSubject(user.subject || '');
+      setExp(user.experience || '');
+      setChildName(user.childName || '');
+      setChildClass(user.childClass || '');
+      setParentGoal(user.goal || '');
+      // Load profile picture from localStorage
+      const pic = localStorage.getItem(`ss_profile_pic_${user.uid}`);
+      if (pic) setProfilePic(pic);
     }
   }, [user, loading, router]);
 
-  if (loading || !user) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <Spinner size="lg" />
-      </div>
-    );
-  }
+  if (loading || !user) return <div className="min-h-screen flex items-center justify-center"><Spinner size="lg" /></div>;
+
+  const role = user.role || 'student';
+  const accentColor = role === 'teacher' ? 'indigo' : role === 'parent' ? 'amber' : 'brand';
 
   const handleLogout = async () => {
     await logout();
     router.replace('/');
   };
 
+  const handlePhotoUpload = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      const dataUrl = ev.target.result;
+      setProfilePic(dataUrl);
+      localStorage.setItem(`ss_profile_pic_${user.uid}`, dataUrl);
+    };
+    reader.readAsDataURL(file);
+  };
+
   const handleSaveProfile = () => {
-    if (user.source === 'manual') {
-      setManualUser({ ...user, name, class: cls, language: lang });
-    } else {
-      // Save preferences for Google user
-      localStorage.setItem(`ss_prefs_${user.uid}`, JSON.stringify({ class: cls, language: lang }));
-    }
+    const updated = { ...user, name, phone, school, language: lang };
+    if (role === 'student') Object.assign(updated, { class: cls, board, goal });
+    if (role === 'teacher') Object.assign(updated, { subject, experience: exp });
+    if (role === 'parent')  Object.assign(updated, { childName, childClass, goal: parentGoal });
+    setManualUser(updated);
+
+    // Also update the registered user DB
+    try {
+      const db = JSON.parse(localStorage.getItem('ss_registered_users') || '{}');
+      if (user.email && db[user.email.toLowerCase()]) {
+        db[user.email.toLowerCase()] = { ...db[user.email.toLowerCase()], ...updated };
+        localStorage.setItem('ss_registered_users', JSON.stringify(db));
+      }
+    } catch {}
+
     setIsEditing(false);
   };
 
+  const handleChangePassword = () => {
+    setPwError(''); setPwSuccess('');
+    if (!oldPw)             { setPwError('Enter your current password.'); return; }
+    if (newPw.length < 4)   { setPwError('New password must be at least 4 characters.'); return; }
+    if (newPw !== confirmPw) { setPwError('Passwords do not match.'); return; }
+
+    try {
+      const db = JSON.parse(localStorage.getItem('ss_registered_users') || '{}');
+      const email = user.email?.toLowerCase();
+      if (!email || !db[email]) { setPwError('Account not found.'); return; }
+      if (db[email].password !== oldPw) { setPwError('Current password is incorrect.'); return; }
+      db[email].password = newPw;
+      localStorage.setItem('ss_registered_users', JSON.stringify(db));
+      setPwSuccess('Password changed successfully!');
+      setOldPw(''); setNewPw(''); setConfirmPw('');
+      setTimeout(() => { setPwSuccess(''); setShowPwForm(false); }, 2000);
+    } catch {
+      setPwError('Something went wrong.');
+    }
+  };
+
+  // Role-based stats
+  const statsConfig = role === 'teacher' ? [
+    { label: 'Students', value: 34, icon: Users, color: `text-indigo-500`, bg: 'bg-indigo-100' },
+    { label: 'Quizzes', value: 12, icon: BookOpen, color: 'text-purple-500', bg: 'bg-purple-100' },
+  ] : role === 'parent' ? [
+    { label: 'Child Score', value: 85, icon: Star, color: 'text-amber-500', bg: 'bg-amber-100' },
+    { label: 'Activities', value: 18, icon: BarChart3, color: 'text-orange-500', bg: 'bg-orange-100' },
+  ] : [
+    { label: 'Day Streak', value: 7, icon: Zap, color: 'text-amber-500', bg: 'bg-amber-100' },
+    { label: 'Total XP', value: '1,240', icon: Star, color: 'text-purple-500', bg: 'bg-purple-100' },
+  ];
+
   return (
     <AppShell title="My Profile">
-      <div className="px-5 py-6 space-y-8 animate-fade-in">
+      <div className="px-5 py-6 space-y-6 animate-fade-in">
 
-        {/* ── User Info Section ────────────────────────────── */}
+        {/* ── User Info ──────────────────────────────────── */}
         <div className="flex flex-col items-center">
           <div className="relative mb-4">
-            <Avatar src={user.photo} name={name} size="xl" />
-            <button 
-              onClick={() => setIsEditing(true)}
-              className="absolute bottom-0 right-0 h-8 w-8 bg-white rounded-full shadow-card flex items-center justify-center text-slate-600 hover:text-brand-500 transition-colors"
+            {profilePic ? (
+              <img src={profilePic} alt="Profile" className="h-24 w-24 rounded-full object-cover border-4 border-white shadow-lg" />
+            ) : (
+              <Avatar src={user.photo} name={name} size="xl" />
+            )}
+            <button
+              onClick={() => fileInputRef.current?.click()}
+              className={`absolute bottom-0 right-0 h-9 w-9 bg-${accentColor}-500 rounded-full shadow-lg flex items-center justify-center text-white hover:scale-110 transition-transform`}
             >
-              <User size={16} />
+              <Camera size={16} />
             </button>
+            <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handlePhotoUpload} />
           </div>
+
           <h2 className="font-display font-800 text-2xl text-slate-900">{name}</h2>
           <p className="text-slate-500 text-sm mt-1">{user.email || 'Manual Account'}</p>
 
           {/* Role badge */}
-          <span className={`inline-block mt-2 text-[10px] font-800 uppercase tracking-wider px-2.5 py-1 rounded-md ${
-            (user.role || 'student') === 'teacher' ? 'bg-indigo-100 text-indigo-600' :
-            (user.role || 'student') === 'parent' ? 'bg-amber-100 text-amber-600' :
+          <span className={`inline-flex items-center gap-1 mt-2 text-[10px] font-800 uppercase tracking-wider px-2.5 py-1 rounded-md ${
+            role === 'teacher' ? 'bg-indigo-100 text-indigo-600' :
+            role === 'parent' ? 'bg-amber-100 text-amber-600' :
             'bg-brand-100 text-brand-600'
           }`}>
-            {(() => {
-              const r = user.role || 'student';
-              const I = r === 'teacher' ? BookOpen : r === 'parent' ? Users : GraduationCap;
-              return <><I size={12} className="inline-block mr-1 -mt-0.5" />{r.charAt(0).toUpperCase() + r.slice(1)}</>;
-            })()}
+            {role === 'teacher' ? <BookOpen size={12} /> : role === 'parent' ? <Users size={12} /> : <GraduationCap size={12} />}
+            {role.charAt(0).toUpperCase() + role.slice(1)}
           </span>
-          
-          <div className="flex gap-2 mt-3">
-            {(user.role || 'student') === 'student' && (
+
+          <div className="flex flex-wrap gap-2 mt-3 justify-center">
+            {role === 'student' && (
               <>
                 <div className="px-3 py-1 bg-brand-50 text-brand-700 text-xs font-700 rounded-full">Class {cls || '?'}</div>
                 <div className="px-3 py-1 bg-indigo-50 text-indigo-700 text-xs font-700 rounded-full capitalize">{LANGUAGES.find(l => l.value === lang)?.label || lang}</div>
+                {board && <div className="px-3 py-1 bg-purple-50 text-purple-700 text-xs font-700 rounded-full">{board}</div>}
               </>
             )}
-            {(user.role || 'student') === 'teacher' && (
+            {role === 'teacher' && (
               <>
-                <div className="px-3 py-1 bg-indigo-50 text-indigo-700 text-xs font-700 rounded-full">{user.subject || 'Teacher'}</div>
-                <div className="px-3 py-1 bg-purple-50 text-purple-700 text-xs font-700 rounded-full">{user.experience || 'Experienced'}</div>
+                <div className="px-3 py-1 bg-indigo-50 text-indigo-700 text-xs font-700 rounded-full">{subject || 'Teacher'}</div>
+                <div className="px-3 py-1 bg-purple-50 text-purple-700 text-xs font-700 rounded-full">{exp || 'Experienced'}</div>
               </>
             )}
-            {(user.role || 'student') === 'parent' && (
+            {role === 'parent' && (
               <>
-                <div className="px-3 py-1 bg-amber-50 text-amber-700 text-xs font-700 rounded-full">Child: {user.childName || 'N/A'}</div>
-                <div className="px-3 py-1 bg-orange-50 text-orange-700 text-xs font-700 rounded-full">Class {user.childClass || '?'}</div>
+                <div className="px-3 py-1 bg-amber-50 text-amber-700 text-xs font-700 rounded-full">Child: {childName || 'N/A'}</div>
+                <div className="px-3 py-1 bg-orange-50 text-orange-700 text-xs font-700 rounded-full">Class {childClass || '?'}</div>
               </>
             )}
           </div>
+
+          <button
+            onClick={() => setIsEditing(true)}
+            className={`mt-4 inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-700 transition-all
+              ${role === 'teacher' ? 'bg-indigo-50 text-indigo-600 hover:bg-indigo-100' :
+                role === 'parent' ? 'bg-amber-50 text-amber-700 hover:bg-amber-100' :
+                'bg-brand-50 text-brand-600 hover:bg-brand-100'}`}
+          >
+            <Edit3 size={14} /> Edit Profile
+          </button>
         </div>
 
-        {/* ── Stats Section ─────────────────────────────── */}
-        <div className="grid grid-cols-2 gap-3 mb-6 animate-fade-up" style={{ animationDelay: '100ms' }}>
-          <div className="card p-4 flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-amber-100 flex items-center justify-center text-amber-500">
-              <Zap size={20} fill="currentColor" />
-            </div>
-            <div>
-              <p className="text-2xl font-display font-900 text-slate-800">7</p>
-              <p className="text-[10px] font-800 text-slate-400 uppercase tracking-wider">Day Streak</p>
-            </div>
-          </div>
-          <div className="card p-4 flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-purple-100 flex items-center justify-center text-purple-500">
-              <Star size={20} fill="currentColor" />
-            </div>
-            <div>
-              <p className="text-2xl font-display font-900 text-slate-800">1,240</p>
-              <p className="text-[10px] font-800 text-slate-400 uppercase tracking-wider">Total XP</p>
-            </div>
-          </div>
-        </div>
-
-        {/* ── Achievements Section ─────────────────────────────── */}
-        <div className="space-y-3 mb-6 animate-fade-up" style={{ animationDelay: '150ms' }}>
-          <h3 className="font-display font-800 text-slate-700 text-base px-1">Achievements</h3>
-          <div className="card p-5">
-            <div className="flex justify-between items-center mb-4">
-              <div className="flex items-center gap-3">
-                <div className="bg-slate-100 p-2.5 rounded-2xl flex items-center justify-center"><Award size={24} className="text-amber-500" /></div>
-                <div>
-                  <h4 className="font-display font-800 text-slate-800">Early Bird</h4>
-                  <p className="text-xs font-600 text-slate-500 mt-0.5">Complete 5 morning quizzes</p>
-                </div>
+        {/* ── Stats ──────────────────────────────────── */}
+        <div className="grid grid-cols-2 gap-3 animate-fade-up" style={{ animationDelay: '100ms' }}>
+          {statsConfig.map(({ label, value, icon: Icon, color, bg }) => (
+            <div key={label} className="card p-4 flex items-center gap-3">
+              <div className={`w-10 h-10 rounded-xl ${bg} flex items-center justify-center ${color}`}>
+                <Icon size={20} fill="currentColor" />
               </div>
-              <div className="text-right">
+              <div>
+                <p className="text-2xl font-display font-900 text-slate-800">{value}</p>
+                <p className="text-[10px] font-800 text-slate-400 uppercase tracking-wider">{label}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* ── Achievements (Student only) ──────────────── */}
+        {role === 'student' && (
+          <div className="space-y-3 animate-fade-up" style={{ animationDelay: '150ms' }}>
+            <h3 className="font-display font-800 text-slate-700 text-base px-1">Achievements</h3>
+            <div className="card p-5">
+              <div className="flex justify-between items-center mb-4">
+                <div className="flex items-center gap-3">
+                  <div className="bg-slate-100 p-2.5 rounded-2xl"><Award size={24} className="text-amber-500" /></div>
+                  <div>
+                    <h4 className="font-display font-800 text-slate-800">Early Bird</h4>
+                    <p className="text-xs font-600 text-slate-500 mt-0.5">Complete 5 morning quizzes</p>
+                  </div>
+                </div>
                 <span className="text-sm font-800 text-brand-500">3/5</span>
               </div>
-            </div>
-            <div className="progress-track h-2.5">
-              <div className="progress-fill bg-brand-500" style={{ width: '60%' }} />
+              <div className="progress-track h-2.5">
+                <div className="progress-fill bg-brand-500" style={{ width: '60%' }} />
+              </div>
             </div>
           </div>
-        </div>
+        )}
 
-        {/* ── Edit Profile Form ────────────────────────────── */}
+        {/* ══════════════ EDIT PROFILE FORM ══════════════ */}
         {isEditing && (
-          <div className="card space-y-4 border-2 border-brand-100 animate-slide-in">
-            <div className="flex items-center justify-between mb-2">
+          <div className="card space-y-4 border-2 border-slate-200 animate-slide-in">
+            <div className="flex items-center justify-between mb-1">
               <h3 className="font-display font-800 text-slate-800">Edit Profile</h3>
-              <button onClick={() => setIsEditing(false)} className="text-slate-400 hover:text-slate-600 text-sm font-600">Cancel</button>
+              <button onClick={() => setIsEditing(false)} className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-400"><X size={18} /></button>
             </div>
-            
-            {user.source === 'manual' && (
-              <div>
-                <label className="block text-xs font-600 text-slate-500 mb-1.5">Name</label>
-                <input
-                  className="input"
-                  value={name}
-                  onChange={e => setName(e.target.value)}
-                  placeholder="Your Name"
-                />
-              </div>
+
+            {/* Name */}
+            <div>
+              <label className="block text-xs font-600 text-slate-500 mb-1.5">Full Name</label>
+              <input className="input" value={name} onChange={e => setName(e.target.value)} placeholder="Your Name" />
+            </div>
+
+            {/* Phone */}
+            <div>
+              <label className="block text-xs font-600 text-slate-500 mb-1.5">Phone Number</label>
+              <input className="input" value={phone} onChange={e => setPhone(e.target.value.replace(/\D/g, ''))} placeholder="10-digit number" type="tel" maxLength={10} />
+            </div>
+
+            {/* School */}
+            <div>
+              <label className="block text-xs font-600 text-slate-500 mb-1.5">School Name</label>
+              <input className="input" value={school} onChange={e => setSchool(e.target.value)} placeholder="School name" />
+            </div>
+
+            {/* ── Student-specific edit ─── */}
+            {role === 'student' && (
+              <>
+                <div>
+                  <label className="block text-xs font-600 text-slate-500 mb-2">Class</label>
+                  <div className="flex flex-wrap gap-2">
+                    {CLASSES.map(c => (
+                      <button key={c} onClick={() => setCls(c)}
+                        className={`h-9 w-9 rounded-xl text-sm font-700 transition-all ${cls === c ? 'bg-brand-500 text-white shadow-glow' : 'bg-slate-50 text-slate-600 hover:bg-slate-100'}`}>{c}</button>
+                    ))}
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-xs font-600 text-slate-500 mb-2">Language</label>
+                  <div className="flex gap-2">
+                    {LANGUAGES.map(l => (
+                      <button key={l.value} onClick={() => setLang(l.value)}
+                        className={`flex-1 py-2 rounded-xl text-sm font-600 transition-all ${lang === l.value ? 'bg-brand-500 text-white' : 'bg-slate-50 text-slate-600 hover:bg-slate-100'}`}>{l.label}</button>
+                    ))}
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-xs font-600 text-slate-500 mb-2">Board</label>
+                  <div className="flex flex-wrap gap-2">
+                    {BOARDS.map(b => (
+                      <button key={b} onClick={() => setBoard(b)}
+                        className={`px-3 py-1.5 rounded-xl text-sm font-600 transition-all ${board === b ? 'bg-brand-500 text-white' : 'bg-slate-50 text-slate-600 hover:bg-slate-100'}`}>{b}</button>
+                    ))}
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-xs font-600 text-slate-500 mb-2">Learning Goal</label>
+                  <div className="flex flex-wrap gap-2">
+                    {STUDENT_GOALS.map(g => (
+                      <button key={g} onClick={() => setGoal(g)}
+                        className={`px-3 py-1.5 rounded-xl text-sm font-600 transition-all ${goal === g ? 'bg-brand-500 text-white' : 'bg-slate-50 text-slate-600 hover:bg-slate-100'}`}>{g}</button>
+                    ))}
+                  </div>
+                </div>
+              </>
             )}
 
-            <div>
-              <label className="block text-xs font-600 text-slate-500 mb-2">Class</label>
-              <div className="flex flex-wrap gap-2">
-                {CLASSES.map(c => (
-                  <button
-                    key={c}
-                    onClick={() => setCls(c)}
-                    className={`h-9 w-9 rounded-xl text-sm font-700 transition-all ${
-                      cls === c
-                        ? 'bg-brand-500 text-white shadow-glow'
-                        : 'bg-slate-50 text-slate-600 hover:bg-slate-100'
-                    }`}
-                  >
-                    {c}
-                  </button>
-                ))}
-              </div>
-            </div>
+            {/* ── Teacher-specific edit ─── */}
+            {role === 'teacher' && (
+              <>
+                <div>
+                  <label className="block text-xs font-600 text-slate-500 mb-2">Subject Expertise</label>
+                  <div className="flex flex-wrap gap-2">
+                    {SUBJECTS.map(s => (
+                      <button key={s} onClick={() => setSubject(s)}
+                        className={`px-3 py-1.5 rounded-xl text-sm font-600 transition-all ${subject === s ? 'bg-indigo-500 text-white' : 'bg-slate-50 text-slate-600 hover:bg-slate-100'}`}>{s}</button>
+                    ))}
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-xs font-600 text-slate-500 mb-2">Years of Experience</label>
+                  <div className="flex flex-wrap gap-2">
+                    {EXPERIENCE.map(ex => (
+                      <button key={ex} onClick={() => setExp(ex)}
+                        className={`px-3 py-1.5 rounded-xl text-sm font-600 transition-all ${exp === ex ? 'bg-indigo-500 text-white' : 'bg-slate-50 text-slate-600 hover:bg-slate-100'}`}>{ex}</button>
+                    ))}
+                  </div>
+                </div>
+              </>
+            )}
 
-            <div>
-              <label className="block text-xs font-600 text-slate-500 mb-2">Language</label>
-              <div className="flex gap-2">
-                {LANGUAGES.map(l => (
-                  <button
-                    key={l.value}
-                    onClick={() => setLang(l.value)}
-                    className={`flex-1 py-2 rounded-xl text-sm font-600 transition-all ${
-                      lang === l.value
-                        ? 'bg-brand-500 text-white shadow-glow'
-                        : 'bg-slate-50 text-slate-600 hover:bg-slate-100'
-                    }`}
-                  >
-                    {l.label}
-                  </button>
-                ))}
-              </div>
-            </div>
+            {/* ── Parent-specific edit ─── */}
+            {role === 'parent' && (
+              <>
+                <div>
+                  <label className="block text-xs font-600 text-slate-500 mb-1.5">Child's Name</label>
+                  <input className="input" value={childName} onChange={e => setChildName(e.target.value)} placeholder="Child's name" />
+                </div>
+                <div>
+                  <label className="block text-xs font-600 text-slate-500 mb-2">Child's Class</label>
+                  <div className="flex flex-wrap gap-2">
+                    {CLASSES.map(c => (
+                      <button key={c} onClick={() => setChildClass(c)}
+                        className={`h-9 w-9 rounded-xl text-sm font-700 transition-all ${childClass === c ? 'bg-amber-500 text-white' : 'bg-slate-50 text-slate-600 hover:bg-slate-100'}`}>{c}</button>
+                    ))}
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-xs font-600 text-slate-500 mb-2">Your Goal</label>
+                  <div className="flex flex-wrap gap-2">
+                    {PARENT_GOALS.map(g => (
+                      <button key={g} onClick={() => setParentGoal(g)}
+                        className={`px-3 py-1.5 rounded-xl text-sm font-600 transition-all ${parentGoal === g ? 'bg-amber-500 text-white' : 'bg-slate-50 text-slate-600 hover:bg-slate-100'}`}>{g}</button>
+                    ))}
+                  </div>
+                </div>
+              </>
+            )}
 
             <Button variant="primary" className="w-full mt-2" onClick={handleSaveProfile}>
               Save Changes
@@ -228,11 +377,40 @@ export default function ProfilePage() {
           </div>
         )}
 
-        {/* ── Settings Section ─────────────────────────────── */}
+        {/* ══════════════ ACCOUNT SETTINGS ══════════════ */}
         <div className="space-y-3">
-          <h3 className="font-display font-800 text-slate-700 text-base px-1">Settings</h3>
-          
+          <h3 className="font-display font-800 text-slate-700 text-base px-1">Account</h3>
           <div className="card p-0 overflow-hidden">
+            {/* Change Password */}
+            <button
+              onClick={() => { setShowPwForm(!showPwForm); setPwError(''); setPwSuccess(''); }}
+              className="w-full flex items-center justify-between p-4 bg-white hover:bg-slate-50 transition-colors border-b border-slate-50"
+            >
+              <div className="flex items-center gap-3 text-slate-700 font-600 text-sm">
+                <div className="p-2 bg-slate-100 rounded-xl text-slate-500"><Lock size={18} /></div>
+                Change Password
+              </div>
+              <ChevronRight size={18} className={`text-slate-400 transition-transform ${showPwForm ? 'rotate-90' : ''}`} />
+            </button>
+
+            {showPwForm && (
+              <div className="px-4 pb-4 space-y-3 animate-slide-in">
+                <div className="relative">
+                  <input className="input pr-10" type={showOldPw ? 'text' : 'password'} placeholder="Current password" value={oldPw} onChange={e => setOldPw(e.target.value)} />
+                  <button type="button" onClick={() => setShowOldPw(!showOldPw)} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400">{showOldPw ? <EyeOff size={14} /> : <Eye size={14} />}</button>
+                </div>
+                <div className="relative">
+                  <input className="input pr-10" type={showNewPw ? 'text' : 'password'} placeholder="New password (min 4 chars)" value={newPw} onChange={e => setNewPw(e.target.value)} />
+                  <button type="button" onClick={() => setShowNewPw(!showNewPw)} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400">{showNewPw ? <EyeOff size={14} /> : <Eye size={14} />}</button>
+                </div>
+                <input className="input" type="password" placeholder="Confirm new password" value={confirmPw} onChange={e => setConfirmPw(e.target.value)} />
+                {pwError && <p className="text-rose-500 text-xs">{pwError}</p>}
+                {pwSuccess && <p className="text-brand-600 text-xs flex items-center gap-1"><CheckCircle2 size={14} />{pwSuccess}</p>}
+                <Button variant="primary" className="w-full text-sm" onClick={handleChangePassword}>Update Password</Button>
+              </div>
+            )}
+
+            {/* Notifications */}
             <Link href="/settings/notifications" className="w-full flex items-center justify-between p-4 bg-white hover:bg-slate-50 transition-colors border-b border-slate-50">
               <div className="flex items-center gap-3 text-slate-700 font-600 text-sm">
                 <div className="p-2 bg-slate-100 rounded-xl text-slate-500"><Bell size={18} /></div>
@@ -240,7 +418,8 @@ export default function ProfilePage() {
               </div>
               <ChevronRight size={18} className="text-slate-400" />
             </Link>
-            
+
+            {/* Preferences */}
             <Link href="/settings/preferences" className="w-full flex items-center justify-between p-4 bg-white hover:bg-slate-50 transition-colors border-b border-slate-50">
               <div className="flex items-center gap-3 text-slate-700 font-600 text-sm">
                 <div className="p-2 bg-slate-100 rounded-xl text-slate-500"><Settings size={18} /></div>
@@ -248,7 +427,8 @@ export default function ProfilePage() {
               </div>
               <ChevronRight size={18} className="text-slate-400" />
             </Link>
-            
+
+            {/* Privacy */}
             <Link href="/settings/privacy" className="w-full flex items-center justify-between p-4 bg-white hover:bg-slate-50 transition-colors">
               <div className="flex items-center gap-3 text-slate-700 font-600 text-sm">
                 <div className="p-2 bg-slate-100 rounded-xl text-slate-500"><Shield size={18} /></div>
@@ -259,20 +439,20 @@ export default function ProfilePage() {
           </div>
         </div>
 
-        {/* ── Logout Section ───────────────────────────────── */}
-        <div className="pt-4">
-          <button 
+        {/* ── Logout ──────────────────────────────────── */}
+        <div className="pt-2">
+          <button
             onClick={handleLogout}
             className="w-full flex items-center justify-center gap-2 py-3.5 rounded-2xl font-700 text-sm text-rose-500 bg-rose-50 hover:bg-rose-100 transition-colors"
           >
             <LogOut size={18} />
             Log Out Account
           </button>
-          
+
           <p className="mt-6 text-center text-xs text-slate-400 font-500 animate-fade-up" style={{ animationDelay: '200ms' }}>
-            <img 
-              src="https://user5301.na.imgto.link/public/20260321/az0pmpqr3wttpr2cmzwy7w-az0pmpqrar-qd1us4ehj7a-1.avif" 
-              alt="Logo" 
+            <img
+              src="https://user5301.na.imgto.link/public/20260321/az0pmpqr3wttpr2cmzwy7w-az0pmpqrar-qd1us4ehj7a-1.avif"
+              alt="Logo"
               className="h-8 w-auto mx-auto mb-2 opacity-60 grayscale hover:grayscale-0 transition-all duration-300"
             />
             <span className="inline-block px-3 py-1 bg-slate-100 rounded text-[10px] tracking-wider uppercase">
@@ -280,7 +460,6 @@ export default function ProfilePage() {
             </span>
           </p>
         </div>
-
       </div>
     </AppShell>
   );
