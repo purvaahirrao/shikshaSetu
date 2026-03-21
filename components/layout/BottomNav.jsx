@@ -1,13 +1,13 @@
 // components/layout/BottomNav.jsx
 import { useRouter } from 'next/router';
-import { Home, Camera, MessageCircle, TrendingUp, User } from 'lucide-react';
+import { Home, Camera, Brain, Trophy, User } from 'lucide-react';
 
 const NAV = [
-  { href: '/home',     icon: Home,          label: 'Home'     },
-  { href: '/scan',     icon: Camera,        label: 'Scan'     },
-  { href: '/chat',     icon: MessageCircle, label: 'Chat'     },
-  { href: '/progress', icon: TrendingUp,    label: 'Progress' },
-  { href: '/profile',  icon: User,          label: 'Profile'  },
+  { href: '/home',        icon: Home,       label: 'Home'     },
+  { href: '/quiz',        icon: Brain,      label: 'Quiz'     },
+  { href: '/scan',        icon: Camera,     label: 'Scan'     },
+  { href: '/leaderboard', icon: Trophy,     label: 'Rank'     },
+  { href: '/profile',     icon: User,       label: 'Profile'  },
 ];
 
 export default function BottomNav() {

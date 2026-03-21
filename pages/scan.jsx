@@ -21,7 +21,7 @@ export default function ScanPage() {
 
   // Debug State
   const [logs, setLogs] = useState([]);
-  const [showDebug, setShowDebug] = useState(true); // Default to true while we fix this
+  const [showDebug, setShowDebug] = useState(false);
 
   const addLog = (msg, data = null) => {
     const logStr = `${new Date().toLocaleTimeString()} - ${msg} ${data ? JSON.stringify(data) : ''}`;
@@ -69,13 +69,13 @@ export default function ScanPage() {
 
     try {
       const data = await ocrImage(file);
-      addLog('✅ Backend response received:', data);
+      addLog('Backend response received:', data);
 
       const extracted = data.extracted_text || data.text || '';
       addLog(`Extracted Text Length: ${extracted.length} chars`);
 
       if (!extracted.trim()) {
-        addLog('⚠️ Warning: Extracted text is empty!');
+        addLog('Warning: Extracted text is empty!');
         setToast({ message: 'No text found in image. Try a clearer photo.', type: 'error' });
         setScanning(false);
         return; // Don't redirect if empty
@@ -84,8 +84,8 @@ export default function ScanPage() {
       addLog('Redirecting to /result...');
       router.push({ pathname: '/result', query: { text: extracted, autoSolve: 'true' } });
     } catch (e) {
-      addLog('❌ API Catch Error:', e.message);
-      setToast({ message: '⚠️ OCR failed. Check debug logs.', type: 'error' });
+      addLog('API Error:', e.message);
+      setToast({ message: 'OCR failed. Check debug logs.', type: 'error' });
     } finally {
       setScanning(false);
     }
