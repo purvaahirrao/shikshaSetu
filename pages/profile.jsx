@@ -1,8 +1,4 @@
-<<<<<<< HEAD
-import { useState, useEffect, useRef } from 'react';
-=======
 import { useState, useEffect, useRef, useCallback } from 'react';
->>>>>>> db035c6d0eb09b2f2db99afa0a5d94b8794cb69e
 import { useRouter } from 'next/router';
 import Link from 'next/link';
 import { useAuth } from '../hooks/useAuth';
@@ -11,8 +7,6 @@ import Avatar from '../components/ui/Avatar';
 import Button from '../components/ui/Button';
 import Spinner from '../components/ui/Spinner';
 import { LogOut, Settings, User, Bell, Shield, ChevronRight, Zap, Star, Award, GraduationCap, BookOpen, Users, Camera, Lock, Eye, EyeOff, Edit3, X, CheckCircle2, Phone, School, Target, BarChart3 } from 'lucide-react';
-<<<<<<< HEAD
-=======
 import { useStudentProgress } from '../hooks/useStudentProgress';
 import {
   getTeacherStudentSummaries,
@@ -20,7 +14,6 @@ import {
   progressSnapshotForUserRecord,
 } from '../services/rosterProgress';
 import { accuracyPercent, badgesFromProgress } from '../services/userProgress';
->>>>>>> db035c6d0eb09b2f2db99afa0a5d94b8794cb69e
 
 const CLASSES = ['1','2','3','4','5','6','7','8','9','10'];
 const LANGUAGES = [
@@ -38,37 +31,6 @@ export default function ProfilePage() {
   const { user, loading, logout, setManualUser } = useAuth();
   const router = useRouter();
   const fileInputRef = useRef(null);
-<<<<<<< HEAD
-
-  const [isEditing, setIsEditing]       = useState(false);
-  const [showPwForm, setShowPwForm]     = useState(false);
-  const [pwSuccess, setPwSuccess]       = useState('');
-
-  // Editable fields
-  const [name,    setName]    = useState('');
-  const [phone,   setPhone]   = useState('');
-  const [school,  setSchool]  = useState('');
-  const [cls,     setCls]     = useState('');
-  const [lang,    setLang]    = useState('english');
-  const [board,   setBoard]   = useState('');
-  const [goal,    setGoal]    = useState('');
-  const [subject, setSubject] = useState('');
-  const [exp,     setExp]     = useState('');
-  const [childName,  setChildName]  = useState('');
-  const [childClass, setChildClass] = useState('');
-  const [parentGoal, setParentGoal] = useState('');
-  const [profilePic, setProfilePic] = useState('');
-
-  // Password change
-  const [oldPw,     setOldPw]     = useState('');
-  const [newPw,     setNewPw]     = useState('');
-  const [confirmPw, setConfirmPw] = useState('');
-  const [showOldPw, setShowOldPw] = useState(false);
-  const [showNewPw, setShowNewPw] = useState(false);
-  const [pwError,   setPwError]   = useState('');
-
-  useEffect(() => {
-=======
   const st = useStudentProgress(user);
   const [extraStats, setExtraStats] = useState({
     teacherStudentCount: 0,
@@ -143,7 +105,6 @@ export default function ProfilePage() {
   const [pwError,   setPwError]   = useState('');
 
   useEffect(() => {
->>>>>>> db035c6d0eb09b2f2db99afa0a5d94b8794cb69e
     if (!loading && !user) { router.replace('/'); return; }
     if (user) {
       setName(user.name || '');
@@ -226,19 +187,6 @@ export default function ProfilePage() {
     }
   };
 
-<<<<<<< HEAD
-  // Role-based stats
-  const statsConfig = role === 'teacher' ? [
-    { label: 'Students', value: 34, icon: Users, color: `text-indigo-500`, bg: 'bg-indigo-100' },
-    { label: 'Quizzes', value: 12, icon: BookOpen, color: 'text-purple-500', bg: 'bg-purple-100' },
-  ] : role === 'parent' ? [
-    { label: 'Child Score', value: 85, icon: Star, color: 'text-amber-500', bg: 'bg-amber-100' },
-    { label: 'Activities', value: 18, icon: BarChart3, color: 'text-orange-500', bg: 'bg-orange-100' },
-  ] : [
-    { label: 'Day Streak', value: 7, icon: Zap, color: 'text-amber-500', bg: 'bg-amber-100' },
-    { label: 'Total XP', value: '1,240', icon: Star, color: 'text-purple-500', bg: 'bg-purple-100' },
-  ];
-=======
   const statsConfig =
     role === 'teacher'
       ? [
@@ -272,7 +220,6 @@ export default function ProfilePage() {
               bg: 'bg-purple-100',
             },
           ];
->>>>>>> db035c6d0eb09b2f2db99afa0a5d94b8794cb69e
 
   return (
     <AppShell title="My Profile">
@@ -360,22 +307,6 @@ export default function ProfilePage() {
         {role === 'student' && (
           <div className="space-y-3 animate-fade-up" style={{ animationDelay: '150ms' }}>
             <h3 className="font-display font-800 text-slate-700 text-base px-1">Achievements</h3>
-<<<<<<< HEAD
-            <div className="card p-5">
-              <div className="flex justify-between items-center mb-4">
-                <div className="flex items-center gap-3">
-                  <div className="bg-slate-100 p-2.5 rounded-2xl"><Award size={24} className="text-amber-500" /></div>
-                  <div>
-                    <h4 className="font-display font-800 text-slate-800">Early Bird</h4>
-                    <p className="text-xs font-600 text-slate-500 mt-0.5">Complete 5 morning quizzes</p>
-                  </div>
-                </div>
-                <span className="text-sm font-800 text-brand-500">3/5</span>
-              </div>
-              <div className="progress-track h-2.5">
-                <div className="progress-fill bg-brand-500" style={{ width: '60%' }} />
-              </div>
-=======
             <div className="card p-4 space-y-3">
               {badgesFromProgress(st.progress).map((b) => (
                 <div
@@ -392,7 +323,6 @@ export default function ProfilePage() {
                   {b.earned && <CheckCircle2 size={18} className="text-brand-500 shrink-0 mt-0.5" />}
                 </div>
               ))}
->>>>>>> db035c6d0eb09b2f2db99afa0a5d94b8794cb69e
             </div>
           </div>
         )}

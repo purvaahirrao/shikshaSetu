@@ -1,5 +1,4 @@
-// services/firebase.js
-// Replace the firebaseConfig values with your own from Firebase Console
+// services/firebase.js — see .env.example for NEXT_PUBLIC_FIREBASE_* (optional; email/password works without).
 
 import { initializeApp, getApps } from 'firebase/app';
 import {
@@ -20,22 +19,39 @@ const firebaseConfig = {
 };
 
 // Prevent duplicate init in Next.js dev (hot-reload)
-const app  = getApps().length ? getApps()[0] : initializeApp(firebaseConfig);
+const app = getApps().length ? getApps()[0] : initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const googleProvider = new GoogleAuthProvider();
+
+/** False when .env still has placeholders — avoids hanging on onAuthStateChanged. */
+export function isFirebaseConfigured() {
+  const k = String(firebaseConfig.apiKey || '');
+  const p = String(firebaseConfig.projectId || '');
+  if (!k || !p) return false;
+  if (k.includes('YOUR_') || p.includes('YOUR_')) return false;
+  return true;
+}
 
 // ── Auth helpers ──────────────────────────────────────────────────────────────
 
 export async function signInWithGoogle() {
+  if (!isFirebaseConfigured()) {
+    throw new Error('Google sign-in needs Firebase keys in .env (NEXT_PUBLIC_FIREBASE_*). Use email/password or add your Firebase config.');
+  }
   const result = await signInWithPopup(auth, googleProvider);
   return result.user;
 }
 
 export async function signOutUser() {
+  if (!isFirebaseConfigured()) return;
   await signOut(auth);
 }
 
 export function onAuthChange(callback) {
+  if (!isFirebaseConfigured()) {
+    queueMicrotask(() => callback(null));
+    return () => {};
+  }
   return onAuthStateChanged(auth, callback);
 }
 

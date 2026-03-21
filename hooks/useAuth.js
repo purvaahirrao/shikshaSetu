@@ -1,25 +1,50 @@
 // hooks/useAuth.js
 import { createContext, useContext, useEffect, useState } from 'react';
-import { onAuthChange, signOutUser } from '../services/firebase';
+import { onAuthChange, signOutUser, isFirebaseConfigured } from '../services/firebase';
 
 const AuthCtx = createContext(null);
 
+/** If Firebase never calls back (blocked script, bad config, offline), stop blocking the UI. */
+const FIREBASE_READY_MS = 3000;
+
 export function AuthProvider({ children }) {
-  const [user, setUser]     = useState(undefined); // undefined = loading
-  const [manual, setManual] = useState(null);       // fallback manual user
+  const [firebaseUser, setFirebaseUser] = useState(undefined); // undefined = still waiting on Firebase
+  const [manual, setManual] = useState(null);
+  const [storageChecked, setStorageChecked] = useState(false);
 
   useEffect(() => {
-    // Try to load manual user from localStorage
     try {
       const saved = localStorage.getItem('ss_manual_user');
       if (saved) setManual(JSON.parse(saved));
     } catch {}
+    setStorageChecked(true);
 
-    // Firebase auth state listener
-    const unsub = onAuthChange((firebaseUser) => {
-      setUser(firebaseUser ?? null);
-    });
-    return unsub;
+    if (!isFirebaseConfigured()) {
+      setFirebaseUser(null);
+      return;
+    }
+
+    let unsub = () => {};
+    try {
+      unsub = onAuthChange((u) => {
+        setFirebaseUser(u ?? null);
+      });
+    } catch (e) {
+      console.warn('Firebase auth listener failed:', e);
+      setFirebaseUser(null);
+      return;
+    }
+    const t = setTimeout(() => {
+      setFirebaseUser((prev) => (prev === undefined ? null : prev));
+    }, FIREBASE_READY_MS);
+    return () => {
+      clearTimeout(t);
+      try {
+        unsub();
+      } catch {
+        /* ignore */
+      }
+    };
   }, []);
 
   const setManualUser = (u) => {
@@ -37,18 +62,24 @@ export function AuthProvider({ children }) {
     try {
       await signOutUser();
     } catch (e) {
-      console.error("Logout error", e);
+      console.error('Logout error', e);
     }
   };
 
   // Resolved user: Firebase user > manual user > null
-  const resolvedUser = user
-    ? { uid: user.uid, name: user.displayName, email: user.email, photo: user.photoURL, source: 'google' }
+  const resolvedUser = firebaseUser
+    ? {
+        uid: firebaseUser.uid,
+        name: firebaseUser.displayName,
+        email: firebaseUser.email,
+        photo: firebaseUser.photoURL,
+        source: 'google',
+      }
     : manual
-    ? { ...manual, source: 'manual' }
-    : null;
+      ? { ...manual, source: 'manual' }
+      : null;
 
-  const loading = user === undefined;
+  const loading = !storageChecked || firebaseUser === undefined;
 
   return (
     <AuthCtx.Provider value={{ user: resolvedUser, loading, setManualUser, clearManualUser, logout }}>

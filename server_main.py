@@ -3,6 +3,9 @@ ShikshaSetu — FastAPI Backend
 Endpoints: /ocr  /solve  /chat
 """
 
+import logging
+import random
+
 from fastapi import FastAPI, File, UploadFile, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
@@ -12,6 +15,8 @@ from ocr import extract_text, generate_answer as local_generate_answer
 from server_ai import generate_answer
 from server_cache import get_cached, set_cached
 
+log = logging.getLogger("shikshasetu.api")
+
 app = FastAPI(title="ShikshaSetu API", version="2.0.0")
 
 app.add_middleware(
@@ -20,6 +25,15 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+@app.get("/health")
+def health():
+    """Fast ping — use to verify the process is listening (unlike /ocr, which can be slow)."""
+    return {"ok": True, "service": "shikshasetu-api"}
+
+
+# EasyOCR loads on first /ocr only — preloading here can make the machine feel "frozen" for minutes.
 
 # ── Models ────────────────────────────────────────────────────────────────────
 
@@ -127,23 +141,18 @@ def chat_endpoint(req: ChatRequest):
     return res
 
 
-# ── Dev server ────────────────────────────────────────────────────────────────
-
-if __name__ == "__main__":
-    uvicorn.run("server_main:app", host="0.0.0.0", port=8000, reload=True)
-
-# Quiz
+# ── Quiz (HTTP) — must stay above __main__ so routes register when run as script ──
 
 from services.quiz_data import quiz_data
-import random
-    
+
+
 @app.get("/quiz")
 def get_quiz(class_level: str, subject: str):
     try:
         questions = quiz_data[class_level][subject]
         random.shuffle(questions)
         return {"questions": questions[:5]}
-    except:
+    except Exception:
         return {"error": "No quiz available"}
 
 
@@ -157,5 +166,11 @@ def daily_challenge(class_level: str = "5"):
             pool.extend(subject_questions)
         random.shuffle(pool)
         return {"questions": pool[:3]}
-    except:
+    except Exception:
         return {"error": "No daily challenge available"}
+
+
+# ── Dev server ────────────────────────────────────────────────────────────────
+
+if __name__ == "__main__":
+    uvicorn.run("server_main:app", host="0.0.0.0", port=8000, reload=True)

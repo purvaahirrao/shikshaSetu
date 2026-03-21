@@ -184,16 +184,13 @@ export default function LoginPage() {
 
   const submitLabel = role === 'student' ? 'Start Learning' : role === 'teacher' ? 'Continue as Teacher' : 'View Child Dashboard';
 
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-slate-50">
-        <Spinner size="lg" />
-      </div>
-    );
-  }
-
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col items-center px-5 py-10">
+      {loading && (
+        <p className="text-center text-xs text-slate-400 mb-2" aria-live="polite">
+          Checking saved session…
+        </p>
+      )}
       {/* Hero */}
       <div className="text-center mb-8 animate-fade-up">
         <div className="inline-flex items-center justify-center mb-4">
