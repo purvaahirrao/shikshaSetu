@@ -1,7 +1,8 @@
 fastapi==0.111.0
 uvicorn[standard]==0.29.0
 python-multipart==0.0.9
-Pillow==10.3.0
+# Pillow 10.3 has no wheel on Python 3.13+; source builds need libjpeg/zlib headers and often fail on Render/CI.
+Pillow>=10.4.0,<12
 numpy==1.26.4
 easyocr==1.7.1
 # pytesseract==0.3.10   # uncomment if Tesseract binary is installed
