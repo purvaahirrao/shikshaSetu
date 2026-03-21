@@ -1,15 +1,30 @@
 import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/router";
 import { Brain, ArrowLeft, CheckCircle2, XCircle, Trophy, Sparkles, Flame } from "lucide-react";
+<<<<<<< HEAD
 import { useGameSystem } from '../hooks/useGameSystem';
 
 export default function Quiz() {
     const router = useRouter();
+=======
+import { useAuth } from '../hooks/useAuth';
+import { useStudentProgress } from '../hooks/useStudentProgress';
+import { getProgressUserId, recordQuizSession } from '../services/userProgress';
+import { pickQuizQuestions, pickDailyQuestions } from '../services/quizDummyData';
+
+export default function Quiz() {
+    const router = useRouter();
+    const { user } = useAuth();
+    const st = useStudentProgress(user);
+>>>>>>> db035c6d0eb09b2f2db99afa0a5d94b8794cb69e
     const [gameState, setGameState] = useState("setup"); // 'setup', 'loading', 'playing', 'result'
     const [classLevel, setClassLevel] = useState("5");
     const [subject, setSubject] = useState("math");
     const [questions, setQuestions] = useState([]);
+<<<<<<< HEAD
     const game = useGameSystem();
+=======
+>>>>>>> db035c6d0eb09b2f2db99afa0a5d94b8794cb69e
     const xpEarnedRef = useRef(0);
 
     // Playing state
@@ -17,8 +32,18 @@ export default function Quiz() {
     const [selectedOption, setSelectedOption] = useState(null);
     const [isAnswerChecked, setIsAnswerChecked] = useState(false);
     const [score, setScore] = useState(0);
+<<<<<<< HEAD
     const [xpEarned, setXpEarned] = useState(0);
 
+=======
+    const scoreRef = useRef(0);
+    const [xpEarned, setXpEarned] = useState(0);
+
+    useEffect(() => {
+        scoreRef.current = score;
+    }, [score]);
+
+>>>>>>> db035c6d0eb09b2f2db99afa0a5d94b8794cb69e
     // Support ?mode=daily for the daily challenge (3 random questions)
     useEffect(() => {
         if (router.query.mode === 'daily') {
@@ -26,6 +51,7 @@ export default function Quiz() {
         }
     }, [router.query.mode]);
 
+<<<<<<< HEAD
     const fetchQuiz = async (isDaily = false) => {
         setGameState("loading");
         try {
@@ -39,6 +65,16 @@ export default function Quiz() {
             const data = await res.json();
             if (data.questions && data.questions.length > 0) {
                 setQuestions(data.questions);
+=======
+    const fetchQuiz = (isDaily = false) => {
+        setGameState("loading");
+        try {
+            const list = isDaily
+                ? pickDailyQuestions(classLevel, 3)
+                : pickQuizQuestions(classLevel, subject, 5);
+            if (list.length > 0) {
+                setQuestions(list);
+>>>>>>> db035c6d0eb09b2f2db99afa0a5d94b8794cb69e
                 setCurrentIndex(0);
                 setScore(0);
                 setSelectedOption(null);
@@ -51,8 +87,13 @@ export default function Quiz() {
                 setGameState("setup");
             }
         } catch (error) {
+<<<<<<< HEAD
             console.error("Quiz fetch error:", error);
             alert("Error loading quiz. Is the Python backend server running on port 8000?");
+=======
+            console.error("Quiz load error:", error);
+            alert("Could not load quiz.");
+>>>>>>> db035c6d0eb09b2f2db99afa0a5d94b8794cb69e
             setGameState("setup");
         }
     };
@@ -68,9 +109,12 @@ export default function Quiz() {
         setIsAnswerChecked(true);
         if (selectedOption === questions[currentIndex].answer) {
             setScore(prev => prev + 1);
+<<<<<<< HEAD
             game.recordQuestion();
             xpEarnedRef.current += 5;
             setXpEarned(xpEarnedRef.current);
+=======
+>>>>>>> db035c6d0eb09b2f2db99afa0a5d94b8794cb69e
         }
     };
 
@@ -80,10 +124,23 @@ export default function Quiz() {
             setSelectedOption(null);
             setIsAnswerChecked(false);
         } else {
+<<<<<<< HEAD
             // Quiz complete — award bonus XP
             game.recordQuizComplete();
             xpEarnedRef.current += 20;
             setXpEarned(xpEarnedRef.current);
+=======
+            const total = questions.length;
+            const sc = scoreRef.current;
+            const bonus = sc === total ? 40 : 0;
+            xpEarnedRef.current = sc * 8 + bonus;
+            setXpEarned(xpEarnedRef.current);
+            const pid = getProgressUserId(user);
+            if (pid && total > 0) {
+                recordQuizSession(pid, { correct: sc, total, subject }, user);
+                st.refresh();
+            }
+>>>>>>> db035c6d0eb09b2f2db99afa0a5d94b8794cb69e
             setGameState("result");
         }
     };
@@ -179,11 +236,19 @@ export default function Quiz() {
                     <div className="flex items-center justify-center gap-4 mb-6 text-sm">
                         <div className="flex items-center gap-1.5 text-slate-500">
                             <Sparkles size={14} className="text-amber-500" />
+<<<<<<< HEAD
                             <span className="font-700">Level {game.level}</span>
                         </div>
                         <div className="flex items-center gap-1.5 text-slate-500">
                             <Flame size={14} className="text-orange-500" />
                             <span className="font-700">{game.streak}-day streak</span>
+=======
+                            <span className="font-700">Level {st.level}</span>
+                        </div>
+                        <div className="flex items-center gap-1.5 text-slate-500">
+                            <Flame size={14} className="text-orange-500" />
+                            <span className="font-700">{st.streak}-day streak</span>
+>>>>>>> db035c6d0eb09b2f2db99afa0a5d94b8794cb69e
                         </div>
                     </div>
 

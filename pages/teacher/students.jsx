@@ -1,10 +1,16 @@
+<<<<<<< HEAD
 // pages/teacher/students.jsx — Teacher's student management page
 import { useState, useEffect } from 'react';
+=======
+// pages/teacher/students.jsx — Students from ss_registered_users + their progress on this device
+import { useState, useEffect, useCallback } from 'react';
+>>>>>>> db035c6d0eb09b2f2db99afa0a5d94b8794cb69e
 import { useRouter } from 'next/router';
 import { useAuth } from '../../hooks/useAuth';
 import AppShell from '../../components/layout/AppShell';
 import Spinner from '../../components/ui/Spinner';
 import { Search, ChevronRight, TrendingUp, TrendingDown, Minus } from 'lucide-react';
+<<<<<<< HEAD
 
 const DUMMY_STUDENTS = [
   { id: '1', name: 'Aarav Sharma',   cls: '8', score: 92, quizzes: 12, streak: 7,  trend: 'up' },
@@ -16,12 +22,36 @@ const DUMMY_STUDENTS = [
   { id: '7', name: 'Kabir Joshi',    cls: '7', score: 71, quizzes: 7,  streak: 2,  trend: 'down' },
   { id: '8', name: 'Ananya Reddy',   cls: '9', score: 90, quizzes: 11, streak: 9,  trend: 'up' },
 ];
+=======
+import { getTeacherStudentSummaries } from '../../services/rosterProgress';
+>>>>>>> db035c6d0eb09b2f2db99afa0a5d94b8794cb69e
 
 export default function TeacherStudentsPage() {
   const { user, loading } = useAuth();
   const router = useRouter();
   const [search, setSearch] = useState('');
   const [filterClass, setFilterClass] = useState('all');
+<<<<<<< HEAD
+=======
+  const [summaries, setSummaries] = useState([]);
+
+  const refresh = useCallback(() => {
+    setSummaries(getTeacherStudentSummaries());
+  }, []);
+
+  useEffect(() => {
+    refresh();
+  }, [refresh]);
+
+  useEffect(() => {
+    window.addEventListener('focus', refresh);
+    window.addEventListener('storage', refresh);
+    return () => {
+      window.removeEventListener('focus', refresh);
+      window.removeEventListener('storage', refresh);
+    };
+  }, [refresh]);
+>>>>>>> db035c6d0eb09b2f2db99afa0a5d94b8794cb69e
 
   useEffect(() => {
     if (!loading && (!user || user.role !== 'teacher')) router.replace('/home');
@@ -29,22 +59,51 @@ export default function TeacherStudentsPage() {
 
   if (loading || !user) return <div className="min-h-screen flex items-center justify-center"><Spinner size="lg" /></div>;
 
+<<<<<<< HEAD
   const filtered = DUMMY_STUDENTS.filter(s => {
+=======
+  const filtered = summaries.filter((s) => {
+>>>>>>> db035c6d0eb09b2f2db99afa0a5d94b8794cb69e
     const matchSearch = s.name.toLowerCase().includes(search.toLowerCase());
     const matchClass = filterClass === 'all' || s.cls === filterClass;
     return matchSearch && matchClass;
   });
 
+<<<<<<< HEAD
+=======
+  const above80 = summaries.filter((s) => s.scorePct != null && s.scorePct >= 80).length;
+  const inactive = summaries.filter((s) => s.streak === 0).length;
+
+>>>>>>> db035c6d0eb09b2f2db99afa0a5d94b8794cb69e
   const TrendIcon = ({ trend }) => {
     if (trend === 'up') return <TrendingUp size={14} className="text-emerald-500" />;
     if (trend === 'down') return <TrendingDown size={14} className="text-rose-500" />;
     return <Minus size={14} className="text-slate-400" />;
   };
 
+<<<<<<< HEAD
   return (
     <AppShell title="My Students">
       <div className="px-5 pt-5 pb-4 space-y-5">
         {/* Search + Filter */}
+=======
+  const scoreLabel = (s) => {
+    if (s.scorePct != null) return `${s.scorePct}%`;
+    if (s.xp > 0) return `${s.xp} XP`;
+    return '—';
+  };
+
+  const scoreTone = (s) => {
+    if (s.scorePct != null) {
+      return s.scorePct >= 80 ? 'text-emerald-500' : s.scorePct >= 60 ? 'text-amber-500' : 'text-rose-500';
+    }
+    return s.xp > 0 ? 'text-indigo-500' : 'text-slate-400';
+  };
+
+  return (
+    <AppShell title="My Students">
+      <div className="px-5 pt-5 pb-4 space-y-5">
+>>>>>>> db035c6d0eb09b2f2db99afa0a5d94b8794cb69e
         <div className="space-y-3 animate-fade-up">
           <div className="relative">
             <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
@@ -52,11 +111,19 @@ export default function TeacherStudentsPage() {
               className="input pl-10"
               placeholder="Search students..."
               value={search}
+<<<<<<< HEAD
               onChange={e => setSearch(e.target.value)}
             />
           </div>
           <div className="flex gap-2 overflow-x-auto no-scrollbar">
             {['all', '6', '7', '8', '9', '10'].map(c => (
+=======
+              onChange={(e) => setSearch(e.target.value)}
+            />
+          </div>
+          <div className="flex gap-2 overflow-x-auto no-scrollbar">
+            {['all', '6', '7', '8', '9', '10'].map((c) => (
+>>>>>>> db035c6d0eb09b2f2db99afa0a5d94b8794cb69e
               <button
                 key={c}
                 onClick={() => setFilterClass(c)}
@@ -70,6 +137,7 @@ export default function TeacherStudentsPage() {
           </div>
         </div>
 
+<<<<<<< HEAD
         {/* Summary */}
         <div className="grid grid-cols-3 gap-3 animate-fade-up" style={{ animationDelay: '60ms' }}>
           <div className="card text-center py-3">
@@ -87,15 +155,45 @@ export default function TeacherStudentsPage() {
         </div>
 
         {/* Student List */}
+=======
+        <div className="grid grid-cols-3 gap-3 animate-fade-up" style={{ animationDelay: '60ms' }}>
+          <div className="card text-center py-3">
+            <p className="text-xl font-display font-900 text-indigo-500">{summaries.length}</p>
+            <p className="text-[10px] text-slate-400 font-700 uppercase">Total</p>
+          </div>
+          <div className="card text-center py-3">
+            <p className="text-xl font-display font-900 text-emerald-500">{above80}</p>
+            <p className="text-[10px] text-slate-400 font-700 uppercase">Quiz 80%+</p>
+          </div>
+          <div className="card text-center py-3">
+            <p className="text-xl font-display font-900 text-rose-500">{inactive}</p>
+            <p className="text-[10px] text-slate-400 font-700 uppercase">No streak</p>
+          </div>
+        </div>
+
+>>>>>>> db035c6d0eb09b2f2db99afa0a5d94b8794cb69e
         <div className="space-y-2 animate-fade-up" style={{ animationDelay: '120ms' }}>
           <h3 className="font-display font-800 text-slate-700 text-base">
             {filtered.length} Student{filtered.length !== 1 ? 's' : ''}
           </h3>
+<<<<<<< HEAD
+=======
+          {summaries.length === 0 && (
+            <p className="text-sm text-slate-500 py-4">
+              No student accounts found on this device. Students appear here after they register in the app (same browser).
+            </p>
+          )}
+>>>>>>> db035c6d0eb09b2f2db99afa0a5d94b8794cb69e
           <div className="card p-0 overflow-hidden">
             {filtered.map((s, i) => (
               <button
                 key={s.id}
+<<<<<<< HEAD
                 onClick={() => router.push(`/teacher/student/${s.id}`)}
+=======
+                type="button"
+                onClick={() => router.push(`/teacher/student/${encodeURIComponent(s.id)}`)}
+>>>>>>> db035c6d0eb09b2f2db99afa0a5d94b8794cb69e
                 className={`w-full flex items-center justify-between p-4 hover:bg-slate-50 transition-colors ${
                   i < filtered.length - 1 ? 'border-b border-slate-50' : ''
                 }`}
@@ -115,17 +213,26 @@ export default function TeacherStudentsPage() {
                 </div>
                 <div className="flex items-center gap-2">
                   <div className="text-right">
+<<<<<<< HEAD
                     <p className={`text-sm font-800 ${s.score >= 80 ? 'text-emerald-500' : s.score >= 60 ? 'text-amber-500' : 'text-rose-500'}`}>
                       {s.score}%
                     </p>
+=======
+                    <p className={`text-sm font-800 ${scoreTone(s)}`}>{scoreLabel(s)}</p>
+>>>>>>> db035c6d0eb09b2f2db99afa0a5d94b8794cb69e
                   </div>
                   <TrendIcon trend={s.trend} />
                   <ChevronRight size={16} className="text-slate-300" />
                 </div>
               </button>
             ))}
+<<<<<<< HEAD
             {filtered.length === 0 && (
               <p className="text-center py-8 text-slate-400 text-sm">No students found</p>
+=======
+            {summaries.length > 0 && filtered.length === 0 && (
+              <p className="text-center py-8 text-slate-400 text-sm">No students match filters</p>
+>>>>>>> db035c6d0eb09b2f2db99afa0a5d94b8794cb69e
             )}
           </div>
         </div>
