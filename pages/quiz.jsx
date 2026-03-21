@@ -1,6 +1,7 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/router";
-import { Brain, ArrowLeft, CheckCircle2, XCircle, Trophy } from "lucide-react";
+import { Brain, ArrowLeft, CheckCircle2, XCircle, Trophy, Sparkles, Flame } from "lucide-react";
+import { useGameSystem } from '../hooks/useGameSystem';
 
 export default function Quiz() {
     const router = useRouter();
@@ -8,12 +9,15 @@ export default function Quiz() {
     const [classLevel, setClassLevel] = useState("5");
     const [subject, setSubject] = useState("math");
     const [questions, setQuestions] = useState([]);
-    
+    const game = useGameSystem();
+    const xpEarnedRef = useRef(0);
+
     // Playing state
     const [currentIndex, setCurrentIndex] = useState(0);
     const [selectedOption, setSelectedOption] = useState(null);
     const [isAnswerChecked, setIsAnswerChecked] = useState(false);
     const [score, setScore] = useState(0);
+    const [xpEarned, setXpEarned] = useState(0);
 
     // Support ?mode=daily for the daily challenge (3 random questions)
     useEffect(() => {
@@ -39,6 +43,8 @@ export default function Quiz() {
                 setScore(0);
                 setSelectedOption(null);
                 setIsAnswerChecked(false);
+                setXpEarned(0);
+                xpEarnedRef.current = 0;
                 setGameState("playing");
             } else {
                 alert("No questions found.");
@@ -62,6 +68,9 @@ export default function Quiz() {
         setIsAnswerChecked(true);
         if (selectedOption === questions[currentIndex].answer) {
             setScore(prev => prev + 1);
+            game.recordQuestion();
+            xpEarnedRef.current += 5;
+            setXpEarned(xpEarnedRef.current);
         }
     };
 
@@ -71,6 +80,10 @@ export default function Quiz() {
             setSelectedOption(null);
             setIsAnswerChecked(false);
         } else {
+            // Quiz complete — award bonus XP
+            game.recordQuizComplete();
+            xpEarnedRef.current += 20;
+            setXpEarned(xpEarnedRef.current);
             setGameState("result");
         }
     };
@@ -152,9 +165,26 @@ export default function Quiz() {
                         <Trophy size={48} className="text-amber-500" />
                     </div>
                     <h1 className="font-display font-900 text-3xl text-slate-800 mb-2">{message}</h1>
-                    <p className="text-slate-500 mb-6">You scored</p>
-                    <div className="text-6xl font-display font-900 text-brand-500 mb-8">
+                    <p className="text-slate-500 mb-4">You scored</p>
+                    <div className="text-6xl font-display font-900 text-brand-500 mb-4">
                         {score} <span className="text-2xl text-slate-300">/ {questions.length}</span>
+                    </div>
+
+                    {/* XP Earned */}
+                    <div className="inline-flex items-center gap-2 bg-amber-50 px-4 py-2 rounded-xl mb-6 animate-fade-up" style={{ animationDelay: '200ms' }}>
+                        <Sparkles size={18} className="text-amber-500" />
+                        <span className="font-display font-900 text-amber-600 text-lg">+{xpEarned} XP</span>
+                    </div>
+
+                    <div className="flex items-center justify-center gap-4 mb-6 text-sm">
+                        <div className="flex items-center gap-1.5 text-slate-500">
+                            <Sparkles size={14} className="text-amber-500" />
+                            <span className="font-700">Level {game.level}</span>
+                        </div>
+                        <div className="flex items-center gap-1.5 text-slate-500">
+                            <Flame size={14} className="text-orange-500" />
+                            <span className="font-700">{game.streak}-day streak</span>
+                        </div>
                     </div>
 
                     <div className="space-y-3">
