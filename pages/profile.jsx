@@ -270,9 +270,13 @@ export default function ProfilePage() {
           </button>
           
           <p className="mt-6 text-center text-xs text-slate-400 font-500 animate-fade-up" style={{ animationDelay: '200ms' }}>
-            {/* Logo placeholder - The user will upload a new logo here */}
-            <span className="inline-block mt-2 px-3 py-1 bg-slate-100 rounded text-[10px] tracking-wider uppercase">
-              ShikshaSetu v1.0
+            <img 
+              src="https://user5301.na.imgto.link/public/20260321/az0pmpqr3wttpr2cmzwy7w-az0pmpqrar-qd1us4ehj7a-1.avif" 
+              alt="Logo" 
+              className="h-8 w-auto mx-auto mb-2 opacity-60 grayscale hover:grayscale-0 transition-all duration-300"
+            />
+            <span className="inline-block px-3 py-1 bg-slate-100 rounded text-[10px] tracking-wider uppercase">
+              ShikshaSetu v1.1
             </span>
           </p>
         </div>
