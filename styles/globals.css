@@ -1,0 +1,108 @@
+@import url('https://fonts.googleapis.com/css2?family=Nunito:wght@600;700;800;900&family=DM+Sans:wght@300;400;500;600&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html { font-family: 'DM Sans', sans-serif; }
+  body {
+    @apply bg-slate-50 text-slate-800 antialiased;
+    -webkit-tap-highlight-color: transparent;
+  }
+  * { @apply outline-none; }
+  *:focus-visible { @apply ring-2 ring-brand-500 ring-offset-2; }
+}
+
+@layer components {
+  /* ── Btn ─────────────────────────────── */
+  .btn {
+    @apply inline-flex items-center justify-center gap-2
+           font-display font-700 rounded-2xl
+           transition-all duration-150 active:scale-95
+           disabled:opacity-50 disabled:pointer-events-none;
+  }
+  .btn-primary {
+    @apply btn bg-brand-500 text-white px-6 py-3.5
+           hover:bg-brand-600 shadow-glow hover:shadow-card-hover;
+  }
+  .btn-secondary {
+    @apply btn bg-white text-slate-700 border border-slate-200 px-6 py-3.5
+           hover:border-brand-300 hover:text-brand-600 shadow-card;
+  }
+  .btn-ghost {
+    @apply btn text-slate-500 px-4 py-2.5 hover:bg-slate-100 hover:text-slate-700;
+  }
+  .btn-google {
+    @apply btn bg-white text-slate-700 border border-slate-200 px-6 py-3.5
+           shadow-card hover:shadow-card-hover w-full;
+  }
+
+  /* ── Card ────────────────────────────── */
+  .card {
+    @apply bg-white rounded-3xl shadow-card p-6;
+  }
+  .card-hover {
+    @apply card transition-all duration-200 hover:shadow-card-hover hover:-translate-y-0.5 cursor-pointer;
+  }
+
+  /* ── Input ───────────────────────────── */
+  .input {
+    @apply w-full bg-slate-50 border border-slate-200 rounded-2xl
+           px-4 py-3.5 text-slate-800 placeholder-slate-400
+           focus:bg-white focus:border-brand-400
+           transition-all duration-150 text-base;
+  }
+  .textarea {
+    @apply input resize-none;
+  }
+
+  /* ── Badge ───────────────────────────── */
+  .badge {
+    @apply inline-flex items-center gap-1.5 text-xs font-600
+           px-2.5 py-1 rounded-full;
+  }
+
+  /* ── Nav item ────────────────────────── */
+  .nav-item {
+    @apply flex flex-col items-center gap-1 py-2 px-4
+           text-slate-400 transition-colors duration-150
+           hover:text-brand-500 cursor-pointer;
+  }
+  .nav-item.active { @apply text-brand-500; }
+
+  /* ── Chat bubble ─────────────────────── */
+  .bubble-user {
+    @apply bg-brand-500 text-white rounded-3xl rounded-br-lg
+           px-4 py-3 max-w-xs ml-auto;
+  }
+  .bubble-bot {
+    @apply bg-white text-slate-700 rounded-3xl rounded-bl-lg
+           px-4 py-3 max-w-xs shadow-card;
+  }
+
+  /* ── Progress bar ────────────────────── */
+  .progress-track {
+    @apply bg-slate-100 rounded-full h-2.5 overflow-hidden;
+  }
+  .progress-fill {
+    @apply h-full rounded-full transition-all duration-700 ease-out;
+  }
+
+  /* ── Skeleton ────────────────────────── */
+  .skeleton {
+    @apply bg-gradient-to-r from-slate-100 via-slate-50 to-slate-100
+           bg-[length:200%_100%] animate-shimmer rounded-xl;
+  }
+}
+
+@layer utilities {
+  .font-600  { font-weight: 600; }
+  .font-700  { font-weight: 700; }
+  .font-800  { font-weight: 800; }
+  .font-900  { font-weight: 900; }
+  .animate-delay-100 { animation-delay: 100ms; }
+  .animate-delay-200 { animation-delay: 200ms; }
+  .animate-delay-300 { animation-delay: 300ms; }
+  .animate-delay-400 { animation-delay: 400ms; }
+}
