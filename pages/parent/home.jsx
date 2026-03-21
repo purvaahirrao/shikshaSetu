@@ -33,22 +33,14 @@ export default function ParentHomePage() {
     };
   }, [refresh]);
 
-  if (loading || !user) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <Spinner size="lg" />
-      </div>
-    );
-  }
-
   void tick;
   const linked = findLinkedStudentForParent(user);
   const p = linked ? progressSnapshotForUserRecord(linked) : null;
   const acc = p ? accuracyPercent(p) : null;
   const weekBars = p ? weekChartData(p) : [];
   const activeDaysThisWeek = weekBars.filter(b => b.done).length;
-  const firstName = user.name?.split(' ')[0] ?? t('pa_parent_placeholder');
-  const childName = user.childName || t('pa_child_placeholder');
+  const firstName = user?.name?.split(' ')[0] ?? t('pa_parent_placeholder');
+  const childName = user?.childName || t('pa_child_placeholder');
 
   // Derive a simple health signal
   const healthColor =
@@ -94,6 +86,14 @@ export default function ParentHomePage() {
     ],
     [t],
   );
+
+  if (loading || !user) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <Spinner size="lg" />
+      </div>
+    );
+  }
 
   return (
     <AppShell title={t('page_parent_home')}>

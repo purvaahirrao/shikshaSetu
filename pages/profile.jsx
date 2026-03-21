@@ -128,24 +128,13 @@ export default function ProfilePage() {
     }
   }, [user, loading, router]);
 
-  if (loading || !user) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-slate-50">
-        <Spinner size="lg" />
-      </div>
-    );
-  }
-
-  const role = user.role || 'student';
-  const accentColor = role === 'teacher' ? 'indigo' : role === 'parent' ? 'amber' : 'brand';
-
-  // ── Handlers ────────────────────────────────────────────────────────────
-  const handleLogout = async () => { await logout(); router.replace('/'); };
+  const role = user?.role || 'student';
 
   const applyAppLanguage = useCallback(
     (value) => {
       setLang(value);
       setGuestLocale(value);
+      if (!user) return;
       const updated = { ...user, language: value };
       if (user?.source === 'manual' && user?.email) {
         setManualUser(updated);
@@ -163,6 +152,44 @@ export default function ProfilePage() {
     },
     [user, setManualUser, setGuestLocale],
   );
+
+  const statsConfig = useMemo(
+    () =>
+      role === 'teacher'
+        ? [
+            { label: t('prof_stat_students'), value: extraStats.teacherStudentCount, icon: Users, color: 'text-indigo-500', bg: 'bg-indigo-100' },
+            { label: t('prof_stat_bankQs'), value: extraStats.teacherBankCount, icon: BookOpen, color: 'text-purple-500', bg: 'bg-purple-100' },
+          ]
+        : role === 'parent'
+          ? [
+              {
+                label: t('prof_stat_childQuizAvg'),
+                value: extraStats.parentChildAcc != null ? `${extraStats.parentChildAcc}%` : t('prof_na'),
+                icon: Star,
+                color: 'text-amber-500',
+                bg: 'bg-amber-100',
+              },
+              { label: t('prof_stat_childActivity'), value: extraStats.parentChildActs, icon: BarChart3, color: 'text-orange-500', bg: 'bg-orange-100' },
+            ]
+          : [
+              { label: t('prof_stat_dayStreak'), value: st.streak, icon: Zap, color: 'text-amber-500', bg: 'bg-amber-100' },
+              { label: t('prof_stat_totalXp'), value: st.xp.toLocaleString(), icon: Star, color: 'text-purple-500', bg: 'bg-purple-100' },
+            ],
+    [role, t, extraStats, st.streak, st.xp],
+  );
+
+  if (loading || !user) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-slate-50">
+        <Spinner size="lg" />
+      </div>
+    );
+  }
+
+  const accentColor = role === 'teacher' ? 'indigo' : role === 'parent' ? 'amber' : 'brand';
+
+  // ── Handlers ────────────────────────────────────────────────────────────
+  const handleLogout = async () => { await logout(); router.replace('/'); };
 
   const handlePhotoUpload = (e) => {
     const file = e.target.files?.[0];
@@ -213,32 +240,6 @@ export default function ProfilePage() {
       setTimeout(() => { setPwSuccess(''); setShowPwForm(false); }, 2000);
     } catch { setPwError(t('prof_pw_generic')); }
   };
-
-  // ── Stats config ────────────────────────────────────────────────────────
-  const statsConfig = useMemo(
-    () =>
-      role === 'teacher'
-        ? [
-            { label: t('prof_stat_students'), value: extraStats.teacherStudentCount, icon: Users, color: 'text-indigo-500', bg: 'bg-indigo-100' },
-            { label: t('prof_stat_bankQs'), value: extraStats.teacherBankCount, icon: BookOpen, color: 'text-purple-500', bg: 'bg-purple-100' },
-          ]
-        : role === 'parent'
-          ? [
-              {
-                label: t('prof_stat_childQuizAvg'),
-                value: extraStats.parentChildAcc != null ? `${extraStats.parentChildAcc}%` : t('prof_na'),
-                icon: Star,
-                color: 'text-amber-500',
-                bg: 'bg-amber-100',
-              },
-              { label: t('prof_stat_childActivity'), value: extraStats.parentChildActs, icon: BarChart3, color: 'text-orange-500', bg: 'bg-orange-100' },
-            ]
-          : [
-              { label: t('prof_stat_dayStreak'), value: st.streak, icon: Zap, color: 'text-amber-500', bg: 'bg-amber-100' },
-              { label: t('prof_stat_totalXp'), value: st.xp.toLocaleString(), icon: Star, color: 'text-purple-500', bg: 'bg-purple-100' },
-            ],
-    [role, t, extraStats, st.streak, st.xp],
-  );
 
   // ── Render ───────────────────────────────────────────────────────────────
   return (

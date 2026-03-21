@@ -33,14 +33,6 @@ export default function TeacherHomePage() {
     };
   }, [refresh]);
 
-  if (loading || !user) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <Spinner size="lg" />
-      </div>
-    );
-  }
-
   void tick;
   const summaries = getTeacherStudentSummaries();
   const overview = teacherOverviewStats(summaries);
@@ -50,7 +42,6 @@ export default function TeacherHomePage() {
   try { bankLen = JSON.parse(localStorage.getItem('ss_teacher_questions') || '[]').length; } catch { }
 
   const hasStudents = summaries.length > 0;
-  const firstName = user.name?.split(' ')[0] ?? t('role_teacher');
 
   // At-risk: no streak + has done at least one quiz
   const atRisk = summaries.filter(s => (s.streak ?? 0) === 0 && (s.quizzes ?? 0) > 0);
@@ -103,6 +94,16 @@ export default function TeacherHomePage() {
     overview.avgScorePct != null
       ? t('ta_avg_suffix', { pct: overview.avgScorePct })
       : t('th_no_quizzes_yet');
+
+  if (loading || !user) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <Spinner size="lg" />
+      </div>
+    );
+  }
+
+  const firstName = user.name?.split(' ')[0] ?? t('role_teacher');
 
   return (
     <AppShell title={t('page_teacher_home')}>
