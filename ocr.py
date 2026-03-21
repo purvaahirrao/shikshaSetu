@@ -85,19 +85,37 @@ def generate_answer(text):
     if llm is None:
         return "Error: Could not load the AI model. Check your console logs."
 
+    # Remove junk characters
+    text = text.replace("|", "").strip()
+
     # 1. Search the web using the extracted text
     web_context = search_online(text)
 
     # 2. Build the prompt using Llama 3.1 exact formatting requirements
     prompt = f"""<|begin_of_text|><|start_header_id|>system<|end_header_id|>
-You are a friendly, encouraging teacher for rural students (class 1–10).
-Explain step-by-step in very simple language.
+You are a strict teacher for class 1–10 students.
+
+IMPORTANT RULES:
+- ALWAYS answer the question directly
+- NEVER say "this is a general question"
+- NEVER give generic advice
+- NEVER give study tips
+- NEVER explain how to solve in general
+- ONLY solve the given question
+
+FORMAT:
+Answer: <final answer>
+
+Steps:
+1. ...
+2. ...
+3. ...
+
+Keep language very simple and clear.
 
 {web_context}<|eot_id|><|start_header_id|>user<|end_header_id|>
-Question from student:
-{text}
-
-Please provide a simple, factual answer.<|eot_id|><|start_header_id|>assistant<|end_header_id|>
+Question:
+{text}<|eot_id|><|start_header_id|>assistant<|end_header_id|>
 """
 
     try:

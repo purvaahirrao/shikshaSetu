@@ -1,7 +1,7 @@
 // pages/chat.jsx
 import { useState, useRef, useEffect } from 'react';
 import { useRouter } from 'next/router';
-import { Send, Volume2, Sparkles } from 'lucide-react';
+import { Send, Volume2, Sparkles, AlertTriangle, Lightbulb } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
 import { sendChat } from '../services/api';
 import AppShell from '../components/layout/AppShell';
@@ -30,7 +30,7 @@ function formatBotText(data) {
   if (data.steps?.length) {
     out += '\n\n' + data.steps.map((s, i) => `${i + 1}. ${s}`).join('\n');
   }
-  if (data.tip) out += `\n\n💡 ${data.tip}`;
+  if (data.tip) out += `\n\nTip: ${data.tip}`;
   return out.trim();
 }
 
@@ -39,7 +39,7 @@ export default function ChatPage() {
   const router = useRouter();
 
   const [messages, setMessages] = useState([
-    { role: 'bot', text: `Hi! I'm your ShikshaSetu assistant 🤖\nAsk me any question — I'll explain it clearly, step by step.` },
+    { role: 'bot', text: `Hi! I'm your ShikshaSetu assistant.\nAsk me any question — I'll explain it clearly, step by step.` },
   ]);
   const [input,   setInput]   = useState('');
   const [sending, setSending] = useState(false);
@@ -65,7 +65,7 @@ export default function ChatPage() {
       const data = await sendChat(msg, user?.language || 'english');
       setMessages(m => [...m, { role: 'bot', text: formatBotText(data) }]);
     } catch {
-      setMessages(m => [...m, { role: 'bot', text: '⚠️ Couldn\'t reach the server. Is the backend running?' }]);
+      setMessages(m => [...m, { role: 'bot', text: 'Could not reach the server. Is the backend running?' }]);
     } finally {
       setSending(false);
       setTimeout(() => inputRef.current?.focus(), 100);
@@ -86,7 +86,7 @@ export default function ChatPage() {
           {/* Suggestion chips — shown only at start */}
           {messages.length === 1 && (
             <div className="animate-fade-up">
-              <p className="text-xs font-700 text-slate-400 uppercase tracking-wide mb-2">Try asking…</p>
+              <p className="text-xs font-700 text-slate-400 uppercase tracking-wide mb-2">Try asking...</p>
               <div className="flex flex-wrap gap-2">
                 {SUGGESTIONS.map(s => (
                   <button
@@ -107,8 +107,8 @@ export default function ChatPage() {
               className={`flex items-end gap-2.5 animate-fade-up ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
             >
               {msg.role === 'bot' && (
-                <div className="h-8 w-8 rounded-full bg-gradient-to-br from-brand-400 to-brand-600 flex items-center justify-center text-sm shrink-0 mb-0.5">
-                  🤖
+                <div className="h-8 w-8 rounded-full bg-gradient-to-br from-brand-400 to-brand-600 flex items-center justify-center shrink-0 mb-0.5">
+                  <Sparkles size={16} className="text-white" />
                 </div>
               )}
 
@@ -137,8 +137,8 @@ export default function ChatPage() {
           {/* Typing indicator */}
           {sending && (
             <div className="flex items-end gap-2.5 animate-fade-in">
-              <div className="h-8 w-8 rounded-full bg-gradient-to-br from-brand-400 to-brand-600 flex items-center justify-center text-sm shrink-0">
-                🤖
+              <div className="h-8 w-8 rounded-full bg-gradient-to-br from-brand-400 to-brand-600 flex items-center justify-center shrink-0">
+                <Sparkles size={16} className="text-white" />
               </div>
               <div className="bubble-bot">
                 <div className="flex items-center gap-1.5 py-1">
@@ -158,7 +158,7 @@ export default function ChatPage() {
           <textarea
             ref={inputRef}
             className="flex-1 bg-slate-50 border border-slate-200 rounded-2xl px-4 py-3 text-sm text-slate-800 placeholder-slate-400 focus:bg-white focus:border-brand-400 transition-all resize-none outline-none min-h-[46px] max-h-32 leading-relaxed"
-            placeholder="Ask any question…"
+            placeholder="Ask any question..."
             value={input}
             onChange={e => setInput(e.target.value)}
             onKeyDown={handleKey}

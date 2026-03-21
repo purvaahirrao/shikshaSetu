@@ -40,6 +40,23 @@ class SolveTextRequest(BaseModel):
 def root():
     return {"status": "ok", "app": "ShikshaSetu API v2"}
 
+def check_filters(text: str) -> dict:
+    t = text.strip().lower()
+    if t in ["hi", "hello", "hey", "hi!", "hello!", "hey!"]:
+        return {"answer": "Hi! 👋 Ask me a question from your studies and I will help you solve it step by step."}
+    
+    # Check for question intent: must have numbers, math symbols, or question words
+    has_math = any(c in t for c in "0123456789+-=/*")
+    qwords = ["what", "why", "how", "when", "where", "who", "which", "explain", "solve", "define", "?", "identify", "choose"]
+    has_q = any(w in t for w in qwords)
+    
+    if not (has_math or has_q):
+        return {"answer": "Please ask a proper question (math, science, or school topic). 😊"}
+    return None
+
+def strip_generic(ans: str) -> str:
+    return ans.replace("This is a general question. Here is a structured approach to solve it.", "").replace("This is a general question", "").strip()
+
 
 @app.post("/ocr")
 async def ocr_endpoint(image: UploadFile = File(...)):
@@ -56,11 +73,16 @@ def solve_text_endpoint(req: SolveTextRequest):
     """Accept text, send to local Llama model, return explanation."""
     if not req.text.strip():
         raise HTTPException(400, "Text cannot be empty.")
+    
+    flt = check_filters(req.text)
+    if flt:
+        return {"extracted_text": req.text.strip(), "answer": flt["answer"]}
         
     ans = local_generate_answer(req.text.strip())
+    ans_clean = strip_generic(ans.strip())
     return {
         "extracted_text": req.text.strip(),
-        "answer": ans.strip()
+        "answer": ans_clean
     }
 
 
@@ -71,12 +93,19 @@ def solve_endpoint(req: SolveRequest):
     if not q:
         raise HTTPException(400, "Question cannot be empty.")
 
+    flt = check_filters(q)
+    if flt:
+        return {**flt, "cached": False, "steps": [], "tip": ""}
+
     key    = f"{q.lower()}::{req.language}"
     cached = get_cached(key)
     if cached:
         return {**cached, "cached": True}
 
     result = generate_answer(q, req.language)
+    if "answer" in result:
+        result["answer"] = strip_generic(result["answer"])
+    
     set_cached(key, result)
     return {**result, "cached": False}
 
@@ -87,10 +116,46 @@ def chat_endpoint(req: ChatRequest):
     msg = req.message.strip()
     if not msg:
         raise HTTPException(400, "Message cannot be empty.")
-    return generate_answer(msg, req.language, chat_mode=True)
+    
+    flt = check_filters(msg)
+    if flt:
+        return {**flt, "steps": [], "tip": ""}
+        
+    res = generate_answer(msg, req.language, chat_mode=True)
+    if "answer" in res:
+        res["answer"] = strip_generic(res["answer"])
+    return res
 
 
 # ── Dev server ────────────────────────────────────────────────────────────────
 
 if __name__ == "__main__":
     uvicorn.run("server_main:app", host="0.0.0.0", port=8000, reload=True)
+
+# Quiz
+
+from services.quiz_data import quiz_data
+import random
+    
+@app.get("/quiz")
+def get_quiz(class_level: str, subject: str):
+    try:
+        questions = quiz_data[class_level][subject]
+        random.shuffle(questions)
+        return {"questions": questions[:5]}
+    except:
+        return {"error": "No quiz available"}
+
+
+@app.get("/daily-challenge")
+def daily_challenge(class_level: str = "5"):
+    """Return 3 random questions from all subjects for daily challenge mode."""
+    try:
+        class_data = quiz_data.get(class_level, {})
+        pool = []
+        for subject_questions in class_data.values():
+            pool.extend(subject_questions)
+        random.shuffle(pool)
+        return {"questions": pool[:3]}
+    except:
+        return {"error": "No daily challenge available"}

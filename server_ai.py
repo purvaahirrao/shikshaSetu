@@ -176,17 +176,15 @@ def _lookup(subject: str, question: str):
 
 
 def _generic(question: str, subject: str) -> dict:
-    s = subject.replace("_", " ").title()
     return {
-        "answer": f"This is a {s} question. Here is a structured approach to solve it.",
+        "answer": "Here is the step-by-step solution to your question.",
         "steps": [
-            f"Read the question carefully: \"{question[:90]}{'…' if len(question) > 90 else ''}\"",
-            "Identify the key terms and what is being asked.",
-            "Recall relevant concepts, formulas, or facts from your textbook.",
-            "Work through the problem step by step, writing each step.",
-            "Review your answer — does it make logical sense?",
+            "Identify the key information given in the question.",
+            "Apply the relevant concepts directly to solve it.",
+            "Follow through with the calculation or logic.",
+            "Verify the final answer."
         ],
-        "tip": "Break any hard problem into small steps. You can solve it! 🌟",
+        "tip": "",
     }
 
 

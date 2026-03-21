@@ -1,11 +1,12 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
+import Link from 'next/link';
 import { useAuth } from '../hooks/useAuth';
 import AppShell from '../components/layout/AppShell';
 import Avatar from '../components/ui/Avatar';
 import Button from '../components/ui/Button';
 import Spinner from '../components/ui/Spinner';
-import { LogOut, Settings, User, Bell, Shield, ChevronRight } from 'lucide-react';
+import { LogOut, Settings, User, Bell, Shield, ChevronRight, Zap, Star, Award, GraduationCap, BookOpen, Users } from 'lucide-react';
 
 const CLASSES = ['1','2','3','4','5','6','7','8','9','10'];
 const LANGUAGES = [
@@ -83,13 +84,82 @@ export default function ProfilePage() {
           </div>
           <h2 className="font-display font-800 text-2xl text-slate-900">{name}</h2>
           <p className="text-slate-500 text-sm mt-1">{user.email || 'Manual Account'}</p>
+
+          {/* Role badge */}
+          <span className={`inline-block mt-2 text-[10px] font-800 uppercase tracking-wider px-2.5 py-1 rounded-md ${
+            (user.role || 'student') === 'teacher' ? 'bg-indigo-100 text-indigo-600' :
+            (user.role || 'student') === 'parent' ? 'bg-amber-100 text-amber-600' :
+            'bg-brand-100 text-brand-600'
+          }`}>
+            {(() => {
+              const r = user.role || 'student';
+              const I = r === 'teacher' ? BookOpen : r === 'parent' ? Users : GraduationCap;
+              return <><I size={12} className="inline-block mr-1 -mt-0.5" />{r.charAt(0).toUpperCase() + r.slice(1)}</>;
+            })()}
+          </span>
           
-          <div className="flex gap-2 mt-4">
-            <div className="px-3 py-1 bg-brand-50 text-brand-700 text-xs font-700 rounded-full">
-              Class {cls || '?'}
+          <div className="flex gap-2 mt-3">
+            {(user.role || 'student') === 'student' && (
+              <>
+                <div className="px-3 py-1 bg-brand-50 text-brand-700 text-xs font-700 rounded-full">Class {cls || '?'}</div>
+                <div className="px-3 py-1 bg-indigo-50 text-indigo-700 text-xs font-700 rounded-full capitalize">{LANGUAGES.find(l => l.value === lang)?.label || lang}</div>
+              </>
+            )}
+            {(user.role || 'student') === 'teacher' && (
+              <>
+                <div className="px-3 py-1 bg-indigo-50 text-indigo-700 text-xs font-700 rounded-full">{user.subject || 'Teacher'}</div>
+                <div className="px-3 py-1 bg-purple-50 text-purple-700 text-xs font-700 rounded-full">{user.experience || 'Experienced'}</div>
+              </>
+            )}
+            {(user.role || 'student') === 'parent' && (
+              <>
+                <div className="px-3 py-1 bg-amber-50 text-amber-700 text-xs font-700 rounded-full">Child: {user.childName || 'N/A'}</div>
+                <div className="px-3 py-1 bg-orange-50 text-orange-700 text-xs font-700 rounded-full">Class {user.childClass || '?'}</div>
+              </>
+            )}
+          </div>
+        </div>
+
+        {/* ── Stats Section ─────────────────────────────── */}
+        <div className="grid grid-cols-2 gap-3 mb-6 animate-fade-up" style={{ animationDelay: '100ms' }}>
+          <div className="card p-4 flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-amber-100 flex items-center justify-center text-amber-500">
+              <Zap size={20} fill="currentColor" />
             </div>
-            <div className="px-3 py-1 bg-indigo-50 text-indigo-700 text-xs font-700 rounded-full capitalize">
-              {LANGUAGES.find(l => l.value === lang)?.label || lang}
+            <div>
+              <p className="text-2xl font-display font-900 text-slate-800">7</p>
+              <p className="text-[10px] font-800 text-slate-400 uppercase tracking-wider">Day Streak</p>
+            </div>
+          </div>
+          <div className="card p-4 flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-purple-100 flex items-center justify-center text-purple-500">
+              <Star size={20} fill="currentColor" />
+            </div>
+            <div>
+              <p className="text-2xl font-display font-900 text-slate-800">1,240</p>
+              <p className="text-[10px] font-800 text-slate-400 uppercase tracking-wider">Total XP</p>
+            </div>
+          </div>
+        </div>
+
+        {/* ── Achievements Section ─────────────────────────────── */}
+        <div className="space-y-3 mb-6 animate-fade-up" style={{ animationDelay: '150ms' }}>
+          <h3 className="font-display font-800 text-slate-700 text-base px-1">Achievements</h3>
+          <div className="card p-5">
+            <div className="flex justify-between items-center mb-4">
+              <div className="flex items-center gap-3">
+                <div className="bg-slate-100 p-2.5 rounded-2xl flex items-center justify-center"><Award size={24} className="text-amber-500" /></div>
+                <div>
+                  <h4 className="font-display font-800 text-slate-800">Early Bird</h4>
+                  <p className="text-xs font-600 text-slate-500 mt-0.5">Complete 5 morning quizzes</p>
+                </div>
+              </div>
+              <div className="text-right">
+                <span className="text-sm font-800 text-brand-500">3/5</span>
+              </div>
+            </div>
+            <div className="progress-track h-2.5">
+              <div className="progress-fill bg-brand-500" style={{ width: '60%' }} />
             </div>
           </div>
         </div>
@@ -163,29 +233,29 @@ export default function ProfilePage() {
           <h3 className="font-display font-800 text-slate-700 text-base px-1">Settings</h3>
           
           <div className="card p-0 overflow-hidden">
-            <button className="w-full flex items-center justify-between p-4 bg-white hover:bg-slate-50 transition-colors border-b border-slate-50">
+            <Link href="/settings/notifications" className="w-full flex items-center justify-between p-4 bg-white hover:bg-slate-50 transition-colors border-b border-slate-50">
               <div className="flex items-center gap-3 text-slate-700 font-600 text-sm">
                 <div className="p-2 bg-slate-100 rounded-xl text-slate-500"><Bell size={18} /></div>
                 Notifications
               </div>
               <ChevronRight size={18} className="text-slate-400" />
-            </button>
+            </Link>
             
-            <button className="w-full flex items-center justify-between p-4 bg-white hover:bg-slate-50 transition-colors border-b border-slate-50">
+            <Link href="/settings/preferences" className="w-full flex items-center justify-between p-4 bg-white hover:bg-slate-50 transition-colors border-b border-slate-50">
               <div className="flex items-center gap-3 text-slate-700 font-600 text-sm">
                 <div className="p-2 bg-slate-100 rounded-xl text-slate-500"><Settings size={18} /></div>
                 App Preferences
               </div>
               <ChevronRight size={18} className="text-slate-400" />
-            </button>
+            </Link>
             
-            <button className="w-full flex items-center justify-between p-4 bg-white hover:bg-slate-50 transition-colors">
+            <Link href="/settings/privacy" className="w-full flex items-center justify-between p-4 bg-white hover:bg-slate-50 transition-colors">
               <div className="flex items-center gap-3 text-slate-700 font-600 text-sm">
                 <div className="p-2 bg-slate-100 rounded-xl text-slate-500"><Shield size={18} /></div>
                 Privacy & Security
               </div>
               <ChevronRight size={18} className="text-slate-400" />
-            </button>
+            </Link>
           </div>
         </div>
 
