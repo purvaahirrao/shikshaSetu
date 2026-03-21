@@ -1,12 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/router";
 import { Brain, ArrowLeft, CheckCircle2, XCircle, Trophy, Sparkles, Flame } from "lucide-react";
-<<<<<<< HEAD
-import { useGameSystem } from '../hooks/useGameSystem';
-
-export default function Quiz() {
-    const router = useRouter();
-=======
 import { useAuth } from '../hooks/useAuth';
 import { useStudentProgress } from '../hooks/useStudentProgress';
 import { getProgressUserId, recordQuizSession } from '../services/userProgress';
@@ -16,15 +10,11 @@ export default function Quiz() {
     const router = useRouter();
     const { user } = useAuth();
     const st = useStudentProgress(user);
->>>>>>> db035c6d0eb09b2f2db99afa0a5d94b8794cb69e
+
     const [gameState, setGameState] = useState("setup"); // 'setup', 'loading', 'playing', 'result'
     const [classLevel, setClassLevel] = useState("5");
     const [subject, setSubject] = useState("math");
     const [questions, setQuestions] = useState([]);
-<<<<<<< HEAD
-    const game = useGameSystem();
-=======
->>>>>>> db035c6d0eb09b2f2db99afa0a5d94b8794cb69e
     const xpEarnedRef = useRef(0);
 
     // Playing state
@@ -32,10 +22,6 @@ export default function Quiz() {
     const [selectedOption, setSelectedOption] = useState(null);
     const [isAnswerChecked, setIsAnswerChecked] = useState(false);
     const [score, setScore] = useState(0);
-<<<<<<< HEAD
-    const [xpEarned, setXpEarned] = useState(0);
-
-=======
     const scoreRef = useRef(0);
     const [xpEarned, setXpEarned] = useState(0);
 
@@ -43,7 +29,6 @@ export default function Quiz() {
         scoreRef.current = score;
     }, [score]);
 
->>>>>>> db035c6d0eb09b2f2db99afa0a5d94b8794cb69e
     // Support ?mode=daily for the daily challenge (3 random questions)
     useEffect(() => {
         if (router.query.mode === 'daily') {
@@ -51,21 +36,6 @@ export default function Quiz() {
         }
     }, [router.query.mode]);
 
-<<<<<<< HEAD
-    const fetchQuiz = async (isDaily = false) => {
-        setGameState("loading");
-        try {
-            let url;
-            if (isDaily) {
-                url = `http://localhost:8000/daily-challenge?class_level=${classLevel}`;
-            } else {
-                url = `http://localhost:8000/quiz?class_level=${classLevel}&subject=${subject}`;
-            }
-            const res = await fetch(url);
-            const data = await res.json();
-            if (data.questions && data.questions.length > 0) {
-                setQuestions(data.questions);
-=======
     const fetchQuiz = (isDaily = false) => {
         setGameState("loading");
         try {
@@ -74,7 +44,6 @@ export default function Quiz() {
                 : pickQuizQuestions(classLevel, subject, 5);
             if (list.length > 0) {
                 setQuestions(list);
->>>>>>> db035c6d0eb09b2f2db99afa0a5d94b8794cb69e
                 setCurrentIndex(0);
                 setScore(0);
                 setSelectedOption(null);
@@ -87,13 +56,8 @@ export default function Quiz() {
                 setGameState("setup");
             }
         } catch (error) {
-<<<<<<< HEAD
-            console.error("Quiz fetch error:", error);
-            alert("Error loading quiz. Is the Python backend server running on port 8000?");
-=======
             console.error("Quiz load error:", error);
             alert("Could not load quiz.");
->>>>>>> db035c6d0eb09b2f2db99afa0a5d94b8794cb69e
             setGameState("setup");
         }
     };
@@ -109,12 +73,6 @@ export default function Quiz() {
         setIsAnswerChecked(true);
         if (selectedOption === questions[currentIndex].answer) {
             setScore(prev => prev + 1);
-<<<<<<< HEAD
-            game.recordQuestion();
-            xpEarnedRef.current += 5;
-            setXpEarned(xpEarnedRef.current);
-=======
->>>>>>> db035c6d0eb09b2f2db99afa0a5d94b8794cb69e
         }
     };
 
@@ -124,12 +82,6 @@ export default function Quiz() {
             setSelectedOption(null);
             setIsAnswerChecked(false);
         } else {
-<<<<<<< HEAD
-            // Quiz complete — award bonus XP
-            game.recordQuizComplete();
-            xpEarnedRef.current += 20;
-            setXpEarned(xpEarnedRef.current);
-=======
             const total = questions.length;
             const sc = scoreRef.current;
             const bonus = sc === total ? 40 : 0;
@@ -140,7 +92,6 @@ export default function Quiz() {
                 recordQuizSession(pid, { correct: sc, total, subject }, user);
                 st.refresh();
             }
->>>>>>> db035c6d0eb09b2f2db99afa0a5d94b8794cb69e
             setGameState("result");
         }
     };
@@ -160,7 +111,7 @@ export default function Quiz() {
                     </button>
                     <h1 className="font-display font-800 text-slate-800 text-xl flex-1">Start Quiz</h1>
                 </header>
-                
+
                 <div className="card text-center mb-6 animate-fade-up">
                     <div className="inline-flex items-center justify-center p-4 bg-purple-100 rounded-3xl mb-4 text-purple-600">
                         <Brain size={48} strokeWidth={1.5} />
@@ -189,7 +140,10 @@ export default function Quiz() {
                 </div>
 
                 <div className="mt-auto pt-6">
-                    <button className="btn-primary w-full bg-purple-500 hover:bg-purple-600 shadow-glow-purple text-lg py-4 border-b-4 border-purple-700 active:border-b-0 active:translate-y-1 transition-all" onClick={fetchQuiz}>
+                    <button
+                        className="btn-primary w-full bg-purple-500 hover:bg-purple-600 shadow-glow-purple text-lg py-4 border-b-4 border-purple-700 active:border-b-0 active:translate-y-1 transition-all"
+                        onClick={fetchQuiz}
+                    >
                         Let's Go!
                     </button>
                 </div>
@@ -236,27 +190,25 @@ export default function Quiz() {
                     <div className="flex items-center justify-center gap-4 mb-6 text-sm">
                         <div className="flex items-center gap-1.5 text-slate-500">
                             <Sparkles size={14} className="text-amber-500" />
-<<<<<<< HEAD
-                            <span className="font-700">Level {game.level}</span>
-                        </div>
-                        <div className="flex items-center gap-1.5 text-slate-500">
-                            <Flame size={14} className="text-orange-500" />
-                            <span className="font-700">{game.streak}-day streak</span>
-=======
                             <span className="font-700">Level {st.level}</span>
                         </div>
                         <div className="flex items-center gap-1.5 text-slate-500">
                             <Flame size={14} className="text-orange-500" />
                             <span className="font-700">{st.streak}-day streak</span>
->>>>>>> db035c6d0eb09b2f2db99afa0a5d94b8794cb69e
                         </div>
                     </div>
 
                     <div className="space-y-3">
-                        <button className="btn-primary w-full py-4 text-base font-800 border-b-4 border-brand-700 active:border-b-0 active:translate-y-1" onClick={() => setGameState('setup')}>
+                        <button
+                            className="btn-primary w-full py-4 text-base font-800 border-b-4 border-brand-700 active:border-b-0 active:translate-y-1"
+                            onClick={() => setGameState('setup')}
+                        >
                             Play Again
                         </button>
-                        <button className="btn-secondary w-full py-4 text-base font-800" onClick={() => router.push('/home')}>
+                        <button
+                            className="btn-secondary w-full py-4 text-base font-800"
+                            onClick={() => router.push('/home')}
+                        >
                             Back to Home
                         </button>
                     </div>
@@ -277,7 +229,10 @@ export default function Quiz() {
                     <XCircle size={28} />
                 </button>
                 <div className="flex-1 progress-track bg-slate-100 h-3">
-                    <div className="progress-fill bg-brand-500 transition-all duration-300" style={{ width: `${progress}%` }} />
+                    <div
+                        className="progress-fill bg-brand-500 transition-all duration-300"
+                        style={{ width: `${progress}%` }}
+                    />
                 </div>
                 <div className="font-800 text-brand-500 min-w-8 text-right">
                     {currentIndex + 1}<span className="text-slate-300">/{questions.length}</span>
@@ -294,7 +249,7 @@ export default function Quiz() {
                     {currentQ.options.map((opt, i) => {
                         const isSelected = selectedOption === opt;
                         const isCorrect = opt === currentQ.answer;
-                        
+
                         let stateClass = "border-slate-200 hover:bg-slate-50 text-slate-700";
                         if (isSelected && !isAnswerChecked) {
                             stateClass = "border-purple-400 bg-purple-50 text-purple-700 ring-2 ring-purple-100";
@@ -328,7 +283,7 @@ export default function Quiz() {
             {/* Bottom Action Area */}
             <div className="p-5 border-t border-slate-100 bg-white shadow-[0_-4px_24px_rgba(0,0,0,0.04)] pb-8">
                 {!isAnswerChecked ? (
-                    <button 
+                    <button
                         className="btn w-full py-4 text-lg font-800 shadow-none border-b-4 active:border-b-0 active:translate-y-1 transition-all disabled:opacity-50 disabled:bg-slate-200 disabled:border-slate-300 disabled:text-slate-400 disabled:cursor-not-allowed bg-brand-500 text-white border-brand-700 hover:bg-brand-600"
                         disabled={!selectedOption}
                         onClick={checkAnswer}
@@ -339,7 +294,10 @@ export default function Quiz() {
                     <div className={`p-4 rounded-2xl -mx-5 -mt-5 -mb-8 px-5 pt-5 pb-8 ${selectedOption === currentQ.answer ? 'bg-brand-100' : 'bg-rose-100'} animate-fade-up`}>
                         <div className="flex items-center gap-3 mb-4">
                             <div className={`w-10 h-10 rounded-full flex items-center justify-center bg-white shadow-sm ${selectedOption === currentQ.answer ? 'text-brand-500' : 'text-rose-500'}`}>
-                                {selectedOption === currentQ.answer ? <CheckCircle2 size={24} strokeWidth={3}/> : <XCircle size={24} strokeWidth={3}/>}
+                                {selectedOption === currentQ.answer
+                                    ? <CheckCircle2 size={24} strokeWidth={3} />
+                                    : <XCircle size={24} strokeWidth={3} />
+                                }
                             </div>
                             <div>
                                 <h3 className={`font-display font-900 text-xl ${selectedOption === currentQ.answer ? 'text-brand-700' : 'text-rose-700'}`}>
@@ -350,7 +308,7 @@ export default function Quiz() {
                                 )}
                             </div>
                         </div>
-                        <button 
+                        <button
                             className={`w-full btn py-4 text-lg font-800 shadow-none border-b-4 active:border-b-0 active:translate-y-1 transition-all text-white ${selectedOption === currentQ.answer ? 'bg-brand-500 border-brand-700 hover:bg-brand-600' : 'bg-rose-500 border-rose-700 hover:bg-rose-600'}`}
                             onClick={nextQuestion}
                         >

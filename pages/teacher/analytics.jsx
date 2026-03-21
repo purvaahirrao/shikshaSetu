@@ -1,40 +1,13 @@
-<<<<<<< HEAD
-// pages/teacher/analytics.jsx — Teacher's class analytics dashboard
-import { useEffect } from 'react';
-=======
 // pages/teacher/analytics.jsx — Aggregates from registered students on this device
 import { useEffect, useState, useCallback } from 'react';
->>>>>>> db035c6d0eb09b2f2db99afa0a5d94b8794cb69e
 import { useRouter } from 'next/router';
 import { useAuth } from '../../hooks/useAuth';
 import AppShell from '../../components/layout/AppShell';
 import Spinner from '../../components/ui/Spinner';
-<<<<<<< HEAD
-import { ArrowLeft, TrendingUp, Users, BarChart3, Award, Target, BookOpen } from 'lucide-react';
-
-const CLASS_DATA = [
-  { cls: '6', students: 8, avg: 84, active: 7 },
-  { cls: '7', students: 6, avg: 78, active: 4 },
-  { cls: '8', students: 10, avg: 88, active: 9 },
-  { cls: '9', students: 7, avg: 82, active: 5 },
-  { cls: '10', students: 5, avg: 71, active: 3 },
-];
-
-const TOP_STUDENTS = [
-  { rank: 1, name: 'Sneha Verma',  cls: '8', score: 95 },
-  { rank: 2, name: 'Aarav Sharma', cls: '8', score: 92 },
-  { rank: 3, name: 'Ananya Reddy', cls: '9', score: 90 },
-  { rank: 4, name: 'Diya Mehta',   cls: '6', score: 88 },
-  { rank: 5, name: 'Priya Patel',  cls: '7', score: 85 },
-];
-
-const SUBJECT_PERFORMANCE = [
-  { subject: 'Mathematics', avg: 81, color: 'bg-indigo-500' },
-  { subject: 'Science',     avg: 84, color: 'bg-emerald-500' },
-  { subject: 'English',     avg: 79, color: 'bg-purple-500' },
-];
-=======
-import { ArrowLeft, TrendingUp, Users, BarChart3, Target } from 'lucide-react';
+import {
+  ArrowLeft, TrendingUp, Users, BarChart3,
+  Target, BookOpen, Brain, Award, Flame,
+} from 'lucide-react';
 import {
   getTeacherStudentSummaries,
   aggregateClassRows,
@@ -42,16 +15,13 @@ import {
   topStudentsByXp,
   teacherOverviewStats,
 } from '../../services/rosterProgress';
->>>>>>> db035c6d0eb09b2f2db99afa0a5d94b8794cb69e
 
 export default function AnalyticsPage() {
   const { user, loading } = useAuth();
   const router = useRouter();
-<<<<<<< HEAD
-=======
   const [tick, setTick] = useState(0);
 
-  const refresh = useCallback(() => setTick((t) => t + 1), []);
+  const refresh = useCallback(() => setTick(t => t + 1), []);
 
   useEffect(() => {
     window.addEventListener('focus', refresh);
@@ -61,19 +31,19 @@ export default function AnalyticsPage() {
       window.removeEventListener('storage', refresh);
     };
   }, [refresh]);
->>>>>>> db035c6d0eb09b2f2db99afa0a5d94b8794cb69e
 
   useEffect(() => {
     if (!loading && (!user || user.role !== 'teacher')) router.replace('/home');
   }, [user, loading, router]);
 
-  if (loading || !user) return <div className="min-h-screen flex items-center justify-center"><Spinner size="lg" /></div>;
+  if (loading || !user) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <Spinner size="lg" />
+      </div>
+    );
+  }
 
-<<<<<<< HEAD
-  const totalStudents = CLASS_DATA.reduce((s, c) => s + c.students, 0);
-  const overallAvg = Math.round(CLASS_DATA.reduce((s, c) => s + c.avg * c.students, 0) / totalStudents);
-  const totalActive = CLASS_DATA.reduce((s, c) => s + c.active, 0);
-=======
   void tick;
   const summaries = getTeacherStudentSummaries();
   const overview = teacherOverviewStats(summaries);
@@ -82,191 +52,276 @@ export default function AnalyticsPage() {
   const top = topStudentsByXp(summaries, 5);
 
   const avgLabel = overview.avgScorePct != null ? `${overview.avgScorePct}%` : '—';
-  const activeLabel = summaries.length ? overview.active : 0;
->>>>>>> db035c6d0eb09b2f2db99afa0a5d94b8794cb69e
+  const totalXP = summaries.reduce((s, st) => s + (st.xp ?? 0), 0);
+  const topStreak = summaries.reduce((max, st) => Math.max(max, st.streak ?? 0), 0);
+  const hasData = summaries.length > 0;
+
+  // Activity heat — how many students were active each weekday
+  const heatByDay = Array(7).fill(0);
+  summaries.forEach(st => {
+    (st.weekBars ?? []).forEach((b, i) => { if (b?.done) heatByDay[i]++; });
+  });
+  const maxHeat = Math.max(1, ...heatByDay);
+  const WEEK_LABELS = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
 
   return (
     <AppShell
       title="Analytics"
-<<<<<<< HEAD
-      left={<button onClick={() => router.back()} className="p-1 rounded-lg hover:bg-slate-100 text-slate-500"><ArrowLeft size={20} /></button>}
-    >
-      <div className="px-5 pt-5 pb-4 space-y-5">
-        {/* Overview Stats */}
-        <div className="grid grid-cols-3 gap-3 animate-fade-up">
-          {[
-            { label: 'Students', value: totalStudents, icon: Users, color: 'text-indigo-500', bg: 'bg-indigo-50' },
-            { label: 'Avg Score', value: `${overallAvg}%`, icon: Target, color: 'text-emerald-500', bg: 'bg-emerald-50' },
-            { label: 'Active', value: totalActive, icon: TrendingUp, color: 'text-amber-500', bg: 'bg-amber-50' },
-=======
       left={
-        <button type="button" onClick={() => router.back()} className="p-1 rounded-lg hover:bg-slate-100 text-slate-500">
+        <button
+          type="button"
+          onClick={() => router.back()}
+          className="p-1 rounded-lg hover:bg-slate-100 text-slate-500"
+        >
           <ArrowLeft size={20} />
         </button>
       }
     >
-      <div className="px-5 pt-5 pb-4 space-y-5">
-        {summaries.length === 0 && (
-          <p className="text-sm text-slate-500 py-2">
-            Add student accounts on this device to see class analytics from their local activity.
+      <div className="px-5 pt-5 pb-8 space-y-6">
+
+        {/* ── Hero banner ─────────────────────────────── */}
+        <div className="rounded-2xl p-5 bg-gradient-to-br from-indigo-500 to-purple-600 text-white animate-fade-up">
+          <p className="text-indigo-200 text-xs font-600 uppercase tracking-wide mb-1">Class Overview</p>
+          <p className="font-display font-900 text-2xl leading-tight">
+            {hasData ? `${summaries.length} student${summaries.length !== 1 ? 's' : ''}` : 'No students yet'}
           </p>
+          <p className="text-indigo-200 text-xs mt-1">
+            {hasData
+              ? `${overview.active} active this week · ${overview.avgScorePct ?? '—'}% avg quiz score`
+              : 'Student accounts on this device will appear here automatically'}
+          </p>
+          {hasData && (
+            <div className="mt-4 grid grid-cols-3 gap-3">
+              {[
+                { label: 'Total XP', value: totalXP.toLocaleString() },
+                { label: 'Top streak', value: `${topStreak}d` },
+                { label: 'Classes', value: classRows.length },
+              ].map(({ label, value }) => (
+                <div key={label} className="bg-white/15 rounded-xl p-2.5 text-center">
+                  <p className="font-display font-900 text-lg leading-none">{value}</p>
+                  <p className="text-indigo-200 text-[10px] font-600 mt-1">{label}</p>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* ── Empty state ──────────────────────────────── */}
+        {!hasData && (
+          <div className="card border border-indigo-100 bg-indigo-50/60 text-indigo-900 text-sm leading-relaxed">
+            Students need to <strong>register with the Student role</strong> in the same browser on this device.
+            Once they do, their activity and quiz results will aggregate here in real time.
+          </div>
         )}
 
-        <div className="grid grid-cols-3 gap-3 animate-fade-up">
+        {/* ── Overview stat cards ───────────────────────── */}
+        <div className="grid grid-cols-2 gap-3 animate-fade-up" style={{ animationDelay: '60ms' }}>
           {[
             { label: 'Students', value: overview.totalStudents, icon: Users, color: 'text-indigo-500', bg: 'bg-indigo-50' },
             { label: 'Avg quiz', value: avgLabel, icon: Target, color: 'text-emerald-500', bg: 'bg-emerald-50' },
-            { label: 'Active', value: activeLabel, icon: TrendingUp, color: 'text-amber-500', bg: 'bg-amber-50' },
->>>>>>> db035c6d0eb09b2f2db99afa0a5d94b8794cb69e
+            { label: 'Active', value: hasData ? overview.active : 0, icon: TrendingUp, color: 'text-amber-500', bg: 'bg-amber-50' },
+            { label: 'Quiz sessions', value: summaries.reduce((s, st) => s + (st.quizzes ?? 0), 0), icon: Brain, color: 'text-purple-500', bg: 'bg-purple-50' },
           ].map(({ label, value, icon: Icon, color, bg }) => (
-            <div key={label} className="card text-center py-4">
-              <div className={`inline-flex items-center justify-center h-9 w-9 rounded-xl ${bg} mx-auto mb-2`}>
+            <div key={label} className="card flex items-center gap-3 py-4">
+              <div className={`inline-flex items-center justify-center h-10 w-10 rounded-xl ${bg} shrink-0`}>
                 <Icon size={18} className={color} />
               </div>
-              <p className={`font-display font-900 text-xl ${color}`}>{value}</p>
-              <p className="text-slate-400 text-xs mt-0.5">{label}</p>
+              <div>
+                <p className={`font-display font-900 text-xl ${color}`}>{value}</p>
+                <p className="text-slate-400 text-xs mt-0.5">{label}</p>
+              </div>
             </div>
           ))}
         </div>
 
-<<<<<<< HEAD
-        {/* Class-wise Performance */}
-=======
->>>>>>> db035c6d0eb09b2f2db99afa0a5d94b8794cb69e
-        <div className="space-y-3 animate-fade-up" style={{ animationDelay: '60ms' }}>
-          <h3 className="font-display font-800 text-slate-700 text-base">Class Performance</h3>
+        {/* ── Class-wise performance ───────────────────── */}
+        <div className="space-y-3 animate-fade-up" style={{ animationDelay: '100ms' }}>
+          <h3 className="font-display font-800 text-slate-700 text-base">Class performance</h3>
           <div className="card p-0 overflow-hidden">
             <div className="grid grid-cols-4 p-3 bg-slate-50 text-[10px] font-800 text-slate-400 uppercase tracking-wider">
-<<<<<<< HEAD
-              <span>Class</span><span className="text-center">Students</span><span className="text-center">Avg</span><span className="text-center">Active</span>
-            </div>
-            {CLASS_DATA.map((c, i) => (
-              <div key={c.cls} className={`grid grid-cols-4 p-3 items-center ${i < CLASS_DATA.length - 1 ? 'border-b border-slate-50' : ''}`}>
-                <span className="text-sm font-700 text-slate-800">Class {c.cls}</span>
-                <span className="text-center text-sm font-600 text-slate-600">{c.students}</span>
-                <span className={`text-center text-sm font-800 ${c.avg >= 80 ? 'text-emerald-500' : c.avg >= 65 ? 'text-amber-500' : 'text-rose-500'}`}>{c.avg}%</span>
-=======
               <span>Class</span>
               <span className="text-center">Students</span>
               <span className="text-center">Avg quiz</span>
               <span className="text-center">Active</span>
             </div>
-            {classRows.length === 0 && (
-              <p className="p-4 text-sm text-slate-400">No class breakdown yet.</p>
+            {classRows.length === 0 ? (
+              <p className="p-4 text-sm text-slate-400">No class data yet.</p>
+            ) : (
+              classRows.map((c, i) => {
+                const scoreColor =
+                  c.avg == null ? 'text-slate-400' :
+                    c.avg >= 80 ? 'text-emerald-500' :
+                      c.avg >= 65 ? 'text-amber-500' :
+                        'text-rose-500';
+                return (
+                  <div
+                    key={c.cls}
+                    className={`grid grid-cols-4 p-3 items-center ${i < classRows.length - 1 ? 'border-b border-slate-50' : ''}`}
+                  >
+                    <span className="text-sm font-700 text-slate-800">Class {c.cls}</span>
+                    <span className="text-center text-sm font-600 text-slate-600">{c.students}</span>
+                    <span className={`text-center text-sm font-800 ${scoreColor}`}>
+                      {c.avg != null ? `${c.avg}%` : '—'}
+                    </span>
+                    <span className="text-center text-sm font-600 text-slate-600">{c.active}</span>
+                  </div>
+                );
+              })
             )}
-            {classRows.map((c, i) => (
-              <div
-                key={c.cls}
-                className={`grid grid-cols-4 p-3 items-center ${i < classRows.length - 1 ? 'border-b border-slate-50' : ''}`}
-              >
-                <span className="text-sm font-700 text-slate-800">Class {c.cls}</span>
-                <span className="text-center text-sm font-600 text-slate-600">{c.students}</span>
-                <span
-                  className={`text-center text-sm font-800 ${
-                    c.avg == null ? 'text-slate-400' : c.avg >= 80 ? 'text-emerald-500' : c.avg >= 65 ? 'text-amber-500' : 'text-rose-500'
-                  }`}
-                >
-                  {c.avg != null ? `${c.avg}%` : '—'}
-                </span>
->>>>>>> db035c6d0eb09b2f2db99afa0a5d94b8794cb69e
-                <span className="text-center text-sm font-600 text-slate-600">{c.active}</span>
-              </div>
-            ))}
           </div>
         </div>
 
-<<<<<<< HEAD
-        {/* Subject Performance */}
-        <div className="space-y-3 animate-fade-up" style={{ animationDelay: '120ms' }}>
-          <h3 className="font-display font-800 text-slate-700 text-base">Subject Averages</h3>
+        {/* ── Subject mix ──────────────────────────────── */}
+        <div className="space-y-3 animate-fade-up" style={{ animationDelay: '140ms' }}>
+          <h3 className="font-display font-800 text-slate-700 text-base">Subject engagement</h3>
           <div className="card space-y-4">
-            {SUBJECT_PERFORMANCE.map(({ subject, avg, color }) => (
-              <div key={subject}>
-                <div className="flex justify-between mb-1.5">
-                  <p className="text-sm font-700 text-slate-700">{subject}</p>
-                  <p className={`text-sm font-800 ${avg >= 80 ? 'text-emerald-500' : 'text-amber-500'}`}>{avg}%</p>
+            {subjectPerf.length === 0 ? (
+              <p className="text-sm text-slate-400">No subject activity yet.</p>
+            ) : (
+              subjectPerf.map(({ subject, avg, color }) => (
+                <div key={subject}>
+                  <div className="flex justify-between mb-1.5">
+                    <p className="text-sm font-700 text-slate-700">{subject}</p>
+                    <p className={`text-sm font-800 ${avg >= 25 ? 'text-emerald-500' : 'text-slate-400'}`}>
+                      {hasData ? `${avg}%` : '—'}
+                    </p>
+                  </div>
+                  <div className="progress-track h-2.5">
+                    <div
+                      className={`progress-fill ${color}`}
+                      style={{ width: `${Math.min(100, avg)}%` }}
+                    />
+                  </div>
                 </div>
-                <div className="progress-track h-2.5">
-                  <div className={`progress-fill ${color}`} style={{ width: `${avg}%` }} />
-=======
-        <div className="space-y-3 animate-fade-up" style={{ animationDelay: '120ms' }}>
-          <h3 className="font-display font-800 text-slate-700 text-base">Subject mix (avg share %)</h3>
-          <div className="card space-y-4">
-            {subjectPerf.map(({ subject, avg, color }) => (
-              <div key={subject}>
-                <div className="flex justify-between mb-1.5">
-                  <p className="text-sm font-700 text-slate-700">{subject}</p>
-                  <p className={`text-sm font-800 ${avg >= 25 ? 'text-emerald-500' : 'text-slate-400'}`}>
-                    {summaries.length ? `${avg}%` : '—'}
-                  </p>
-                </div>
-                <div className="progress-track h-2.5">
-                  <div className={`progress-fill ${color}`} style={{ width: `${Math.min(100, avg)}%` }} />
->>>>>>> db035c6d0eb09b2f2db99afa0a5d94b8794cb69e
-                </div>
-              </div>
-            ))}
+              ))
+            )}
           </div>
         </div>
 
-<<<<<<< HEAD
-        {/* Top Students */}
-        <div className="space-y-3 animate-fade-up" style={{ animationDelay: '160ms' }}>
-          <h3 className="font-display font-800 text-slate-700 text-base">Top Students</h3>
-          <div className="card p-0 overflow-hidden">
-            {TOP_STUDENTS.map((s, i) => (
-              <div key={s.rank} className={`flex items-center justify-between p-4 ${i < TOP_STUDENTS.length - 1 ? 'border-b border-slate-50' : ''}`}>
-                <div className="flex items-center gap-3">
-                  <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-800 ${
-                    s.rank === 1 ? 'bg-amber-100 text-amber-600' :
-                    s.rank === 2 ? 'bg-slate-200 text-slate-600' :
-                    s.rank === 3 ? 'bg-orange-100 text-orange-600' :
-                    'bg-slate-100 text-slate-500'
-                  }`}>
-                    {s.rank}
-=======
-        <div className="space-y-3 animate-fade-up" style={{ animationDelay: '160ms' }}>
+        {/* ── Weekly activity heatmap ───────────────────── */}
+        {hasData && (
+          <div className="space-y-3 animate-fade-up" style={{ animationDelay: '160ms' }}>
+            <h3 className="font-display font-800 text-slate-700 text-base">
+              Class activity this week
+            </h3>
+            <div className="card">
+              <div className="flex items-end justify-between gap-2 h-24 mb-3">
+                {heatByDay.map((count, i) => (
+                  <div key={i} className="flex-1 flex flex-col items-center gap-1.5">
+                    <div className="w-full flex flex-col justify-end h-16">
+                      <div
+                        className="w-full rounded-t-lg transition-all bg-indigo-400"
+                        style={{
+                          height: `${count > 0 ? Math.max(8, (count / maxHeat) * 100) : 4}%`,
+                          minHeight: count > 0 ? 6 : 2,
+                          opacity: count > 0 ? 1 : 0.2,
+                        }}
+                      />
+                    </div>
+                    <span className="text-[10px] font-700 text-slate-400">{WEEK_LABELS[i]}</span>
+                  </div>
+                ))}
+              </div>
+              <p className="text-[10px] text-slate-400">
+                Bar height = number of students active on that day.
+              </p>
+            </div>
+          </div>
+        )}
+
+        {/* ── Top students by XP ───────────────────────── */}
+        <div className="space-y-3 animate-fade-up" style={{ animationDelay: '180ms' }}>
           <h3 className="font-display font-800 text-slate-700 text-base">Top by XP</h3>
           <div className="card p-0 overflow-hidden">
-            {top.length === 0 && <p className="p-4 text-sm text-slate-400">No data yet.</p>}
-            {top.map((s, i) => (
-              <div
-                key={s.id}
-                className={`flex items-center justify-between p-4 ${i < top.length - 1 ? 'border-b border-slate-50' : ''}`}
-              >
-                <div className="flex items-center gap-3">
-                  <div
-                    className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-800 ${
-                      i === 0 ? 'bg-amber-100 text-amber-600' :
-                      i === 1 ? 'bg-slate-200 text-slate-600' :
+            {top.length === 0 ? (
+              <p className="p-4 text-sm text-slate-400">No data yet.</p>
+            ) : (
+              top.map((s, i) => {
+                const medalBg =
+                  i === 0 ? 'bg-amber-100 text-amber-600' :
+                    i === 1 ? 'bg-slate-200 text-slate-600' :
                       i === 2 ? 'bg-orange-100 text-orange-600' :
-                      'bg-slate-100 text-slate-500'
-                    }`}
+                        'bg-slate-100 text-slate-500';
+                return (
+                  <button
+                    key={s.id}
+                    type="button"
+                    onClick={() => router.push(`/teacher/student/${encodeURIComponent(s.id)}`)}
+                    className={`w-full flex items-center justify-between gap-3 p-4 hover:bg-slate-50 transition-colors ${i < top.length - 1 ? 'border-b border-slate-50' : ''
+                      }`}
                   >
-                    {i + 1}
->>>>>>> db035c6d0eb09b2f2db99afa0a5d94b8794cb69e
-                  </div>
-                  <div>
-                    <p className="text-sm font-700 text-slate-800">{s.name}</p>
-                    <p className="text-[11px] text-slate-400">Class {s.cls}</p>
-                  </div>
-                </div>
-<<<<<<< HEAD
-                <span className="text-sm font-800 text-emerald-500">{s.score}%</span>
-=======
-                <span className="text-sm font-800 text-emerald-600">{s.xp} XP</span>
->>>>>>> db035c6d0eb09b2f2db99afa0a5d94b8794cb69e
-              </div>
-            ))}
+                    <div className="flex items-center gap-3">
+                      <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-800 shrink-0 ${medalBg}`}>
+                        {i + 1}
+                      </div>
+                      <div className="text-left">
+                        <p className="text-sm font-700 text-slate-800">{s.name}</p>
+                        <p className="text-[11px] text-slate-400 mt-0.5">
+                          Class {s.cls} · {s.quizzes} quiz{s.quizzes !== 1 ? 'zes' : ''}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="text-right shrink-0">
+                      <p className="text-sm font-800 text-indigo-600">{s.xp} XP</p>
+                      {s.scorePct != null && (
+                        <p className={`text-[11px] font-700 ${s.scorePct >= 80 ? 'text-emerald-500' : s.scorePct >= 60 ? 'text-amber-500' : 'text-rose-400'}`}>
+                          {s.scorePct}% avg
+                        </p>
+                      )}
+                    </div>
+                  </button>
+                );
+              })
+            )}
           </div>
         </div>
-<<<<<<< HEAD
-=======
 
-        <p className="text-[11px] text-slate-400 flex items-center gap-1">
-          <BarChart3 size={12} /> Data is from this browser only until a shared backend links rosters.
+        {/* ── At-risk students ─────────────────────────── */}
+        {hasData && (() => {
+          const atRisk = summaries.filter(s =>
+            (s.scorePct != null && s.scorePct < 50) || (s.streak === 0 && s.quizzes > 0)
+          );
+          if (atRisk.length === 0) return null;
+          return (
+            <div className="space-y-3 animate-fade-up" style={{ animationDelay: '200ms' }}>
+              <h3 className="font-display font-800 text-slate-700 text-base flex items-center gap-2">
+                <Flame size={16} className="text-rose-400" /> Needs attention
+              </h3>
+              <div className="card p-0 overflow-hidden border border-rose-100">
+                {atRisk.map((s, i) => (
+                  <button
+                    key={s.id}
+                    type="button"
+                    onClick={() => router.push(`/teacher/student/${encodeURIComponent(s.id)}`)}
+                    className={`w-full flex items-center justify-between gap-3 p-4 bg-rose-50/40 hover:bg-rose-50 transition-colors ${i < atRisk.length - 1 ? 'border-b border-rose-50' : ''
+                      }`}
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="w-9 h-9 rounded-full bg-rose-100 flex items-center justify-center shrink-0">
+                        <span className="text-rose-600 font-800 text-sm">{s.name.charAt(0)}</span>
+                      </div>
+                      <div className="text-left">
+                        <p className="text-sm font-700 text-slate-800">{s.name}</p>
+                        <p className="text-[11px] text-slate-400 mt-0.5">
+                          {s.scorePct != null && s.scorePct < 50
+                            ? `Low quiz avg: ${s.scorePct}%`
+                            : 'No recent activity'}
+                        </p>
+                      </div>
+                    </div>
+                    <Award size={14} className="text-rose-400 shrink-0" />
+                  </button>
+                ))}
+              </div>
+            </div>
+          );
+        })()}
+
+        <p className="text-[11px] text-slate-400 flex items-center gap-1.5 pb-2">
+          <BarChart3 size={12} />
+          Data is from this browser only until a shared backend links rosters.
         </p>
->>>>>>> db035c6d0eb09b2f2db99afa0a5d94b8794cb69e
+
       </div>
     </AppShell>
   );
