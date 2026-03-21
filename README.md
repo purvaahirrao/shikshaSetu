@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # ShikshaSetu v2 — AI Learning App (Premium UI)
 
 A **production-grade MVP** with Next.js + Tailwind CSS frontend and FastAPI backend.
@@ -200,3 +201,6 @@ Question: {question}"""
 | CORS error | Confirm backend is on port 8000 and CORS allows `*` |
 | Speech not working | Use Chrome/Edge; iOS Safari needs a user gesture first |
 | Firebase auth error | Check that `localhost` is in authorised domains |
+=======
+# shikshaSetu
+>>>>>>> 7e1e7f7874a7c0fd6ac3455d498c29e95bd1383f
