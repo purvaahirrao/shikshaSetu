@@ -7,8 +7,20 @@ from __future__ import annotations
 import json
 import logging
 import os
+import re
+import unicodedata
 
 log = logging.getLogger(__name__)
+
+
+def normalize_ocr_for_llm(text: str) -> str:
+    """Collapse OCR junk whitespace and invisible chars; keep line breaks for multi-part questions."""
+    t = unicodedata.normalize("NFC", (text or "").strip())
+    t = re.sub(r"[\u200b\u200c\u200d\ufeff]", "", t)
+    t = re.sub(r"\n{4,}", "\n\n\n", t)
+    t = re.sub(r"[ \t]{2,}", " ", t)
+    return t.strip()
+
 
 # ── Language UI labels ────────────────────────────────────────────────────────
 
@@ -182,31 +194,71 @@ def _lookup(subject: str, question: str):
     return None
 
 
-def _generic(question: str, subject: str) -> dict:
+def _lookup_broad(question: str) -> tuple[str, dict] | tuple[None, None]:
+    """
+    Match any KB topic as substring of the question (longest topic wins).
+    Fixes missed hits when _detect_subject is wrong or OCR garbles keywords.
+    """
+    q = question.lower()
+    best: dict | None = None
+    best_subj: str | None = None
+    best_len = 0
+    for (subj, topic), data in KB.items():
+        if len(topic) < 3:
+            continue
+        if topic in q and len(topic) > best_len:
+            best_len = len(topic)
+            best = data
+            best_subj = subj
+    if best is not None and best_subj is not None:
+        return best_subj, best
+    return None, None
+
+
+def llm_env_configured() -> bool:
+    return bool(
+        (
+            os.environ.get("OPENAI_API_KEY")
+            or os.environ.get("XAI_API_KEY")
+            or os.environ.get("GROK_API_KEY")
+            or os.environ.get("GROQ_API_KEY")
+            or os.environ.get("SHIKSHA_OPENAI_API_KEY")
+            or ""
+        ).strip()
+    )
+
+
+def _fallback_no_match() -> dict:
+    """When no LLM key and no KB hit — honest message instead of fake template steps."""
     return {
-        "answer": "Here is the step-by-step solution to your question.",
+        "answer": (
+            "No AI API key is available to this server, so I can only use a tiny built-in topic list. "
+            "Add a key to the Python API environment (or a .env file next to server_main.py for local runs) and restart."
+        ),
         "steps": [
-            "Identify the key information given in the question.",
-            "Apply the relevant concepts directly to solve it.",
-            "Follow through with the calculation or logic.",
-            "Verify the final answer."
+            "Hosted (Render etc.): Dashboard → your API service → Environment → add one of: OPENAI_API_KEY, XAI_API_KEY, GROQ_API_KEY.",
+            "Groq: set GROQ_API_KEY=gsk-... (no extra URL needed). OpenAI: OPENAI_API_KEY=sk-.... xAI/Grok: XAI_API_KEY + XAI_BASE_URL=https://api.x.ai/v1",
+            "Redeploy or restart the API. Open GET /health and check llm.configured is true.",
         ],
-        "tip": "",
+        "tip": "Local dev: copy .env.example to .env in the project root and set GROQ_API_KEY or OPENAI_API_KEY.",
     }
 
 
-def _openai_solve(question: str, lang: str, chat_mode: bool) -> dict | None:
+def _openai_solve(
+    question: str, lang: str, chat_mode: bool, from_ocr: bool = False
+) -> dict | None:
     """
     Chat Completions via the OpenAI Python SDK (OpenAI, Grok/xAI, and other OpenAI-compatible APIs).
 
-    Keys (first non-empty wins): OPENAI_API_KEY, XAI_API_KEY, GROK_API_KEY, SHIKSHA_OPENAI_API_KEY
-    Base URL (optional): OPENAI_BASE_URL or XAI_BASE_URL — e.g. https://api.x.ai/v1 for Grok
-    Model: OPENAI_MODEL — e.g. gpt-4o-mini (OpenAI) or grok-2-latest (xAI; check current docs)
+    Keys (first non-empty wins): OPENAI_API_KEY, XAI_API_KEY, GROK_API_KEY, GROQ_API_KEY, SHIKSHA_OPENAI_API_KEY
+    Base URL (optional): OPENAI_BASE_URL or XAI_BASE_URL — e.g. https://api.x.ai/v1 for Grok; Groq defaults to api.groq.com
+    Model: OPENAI_MODEL — e.g. gpt-4o-mini (OpenAI), grok-2-latest (xAI), llama-3.1-8b-instant (Groq)
     """
     api_key = (
         os.environ.get("OPENAI_API_KEY")
         or os.environ.get("XAI_API_KEY")
         or os.environ.get("GROK_API_KEY")
+        or os.environ.get("GROQ_API_KEY")
         or os.environ.get("SHIKSHA_OPENAI_API_KEY")
         or ""
     ).strip()
@@ -220,11 +272,20 @@ def _openai_solve(question: str, lang: str, chat_mode: bool) -> dict | None:
         return None
 
     base_url = (os.environ.get("OPENAI_BASE_URL") or os.environ.get("XAI_BASE_URL") or "").strip()
-    if not base_url and (
-        os.environ.get("XAI_API_KEY") or os.environ.get("GROK_API_KEY")
-    ):
+    groq_key = (os.environ.get("GROQ_API_KEY") or "").strip()
+    uses_groq = bool(groq_key) and api_key == groq_key
+    if not base_url and (os.environ.get("XAI_API_KEY") or os.environ.get("GROK_API_KEY")):
         base_url = "https://api.x.ai/v1"
-    default_model = "grok-2-latest" if "x.ai" in base_url.lower() else "gpt-4o-mini"
+    elif not base_url and uses_groq:
+        base_url = "https://api.groq.com/openai/v1"
+
+    b = base_url.lower()
+    if "x.ai" in b:
+        default_model = "grok-2-latest"
+    elif "groq.com" in b:
+        default_model = "llama-3.1-8b-instant"
+    else:
+        default_model = "gpt-4o-mini"
     model = (os.environ.get("OPENAI_MODEL") or default_model).strip()
     lang_key = lang if lang in LABELS else "english"
     lang_names = {"english": "English", "hindi": "Hindi (Devanagari script)", "marathi": "Marathi"}
@@ -233,20 +294,49 @@ def _openai_solve(question: str, lang: str, chat_mode: bool) -> dict | None:
     schema_hint = (
         '{"answer":"string","steps":["string",...],"tip":"string","subject":"math|science|english|social_science|general"}'
     )
+    ocr_rules = (
+        "The user text may be OCR from a photo: fix likely misread letters (e.g. O/0, l/1, rn/m), "
+        "merge broken words where obvious, and ignore decorative borders or watermarks. "
+        "If Hindi/Marathi (Devanagari) and English are mixed, use both. "
+        "Answer the recovered question with the correct final result for math problems."
+    )
     if chat_mode:
         system = (
-            f"You are a warm tutor for school students (grades 1–10). Reply entirely in {lang_name}. "
-            "Be concise. Return ONLY valid JSON (no markdown): "
-            '{"answer":"...","steps":["short point 1","short point 2"],"tip":"one line or empty"}'
+            f"You are a tutor for grades 1–10. Reply entirely in {lang_name}. "
+            "Answer the user's actual question with specific facts, steps, or calculations—never reply with only generic study tips. "
+        )
+        if from_ocr:
+            system += ocr_rules + " "
+        system += (
+            "Return ONLY valid JSON (no markdown): "
+            '{"answer":"direct helpful reply","steps":["concrete point 1","concrete point 2"],"tip":"one line or empty string"}'
         )
     else:
         system = (
             f"You are a careful tutor for grades 1–10. The question may come from a camera/OCR scan (noise, line breaks, typos). "
             f"Write every field in {lang_name}. Answer THIS exact question only—no template paragraphs, no 'identify key information' filler. "
+        )
+        if from_ocr:
+            system += ocr_rules + " "
+        system += (
             "Return ONLY valid JSON (no markdown) with shape: "
             f"{schema_hint}. "
             "Use 3–6 concrete steps for non-trivial questions. Pick the closest subject label."
         )
+
+    q_raw = (question or "").strip()[:12000]
+    q_use = normalize_ocr_for_llm(q_raw) if from_ocr else q_raw
+    if from_ocr:
+        user_content = (
+            "The following may be from a camera scan (OCR) or pasted homework: it can be noisy or multi-line. "
+            "Recover the intended question and answer it precisely (include numeric results for math).\n\n---\n"
+            f"{q_use}"
+        )
+    else:
+        user_content = q_use
+
+    temp = 0.22 if from_ocr else 0.35
+    max_tok = 2000 if from_ocr else 1400
 
     client_kw: dict = {"api_key": api_key}
     if base_url:
@@ -257,10 +347,10 @@ def _openai_solve(question: str, lang: str, chat_mode: bool) -> dict | None:
             "model": model,
             "messages": [
                 {"role": "system", "content": system},
-                {"role": "user", "content": question.strip()[:12000]},
+                {"role": "user", "content": user_content},
             ],
-            "temperature": 0.35,
-            "max_tokens": 1400,
+            "temperature": temp,
+            "max_tokens": max_tok,
         }
         try:
             kwargs["response_format"] = {"type": "json_object"}
@@ -308,7 +398,7 @@ def _openai_solve(question: str, lang: str, chat_mode: bool) -> dict | None:
     tip = str(data.get("tip", "") or "").strip()
     subj = str(data.get("subject", "") or "").lower().strip()
     if subj not in ("math", "science", "english", "social_science", "general"):
-        subj = _detect_subject(question)
+        subj = _detect_subject(q_use)
 
     return {
         "answer": answer,
@@ -320,15 +410,30 @@ def _openai_solve(question: str, lang: str, chat_mode: bool) -> dict | None:
     }
 
 
-def generate_answer(question: str, language: str = "english", chat_mode: bool = False) -> dict:
+def generate_answer(
+    question: str,
+    language: str = "english",
+    chat_mode: bool = False,
+    from_ocr: bool = False,
+) -> dict:
     lang = language.lower() if language.lower() in LABELS else "english"
+    q_work = normalize_ocr_for_llm(question) if from_ocr else question.strip()
 
-    llm = _openai_solve(question.strip(), lang, chat_mode)
+    llm = _openai_solve(q_work, lang, chat_mode, from_ocr)
     if llm:
         return llm
 
-    subject = _detect_subject(question)
-    data = _lookup(subject, question) or _generic(question, subject)
+    broad_subj, broad_data = _lookup_broad(q_work)
+    if broad_data is not None and broad_subj is not None:
+        subject, data = broad_subj, broad_data
+    else:
+        subject = _detect_subject(q_work)
+        data = _lookup(subject, q_work)
+
+    if not data:
+        data = _fallback_no_match()
+        subject = "general"
+
     prefix = {"hindi": "[हिंदी] ", "marathi": "[मराठी] "}.get(lang, "")
 
     return {

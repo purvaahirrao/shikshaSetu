@@ -265,7 +265,13 @@ def _easyocr(image_bytes: bytes):
         gray = ImageEnhance.Contrast(gray).enhance(1.8)
         arr2 = np.array(gray.convert("RGB"))
         results2 = reader.readtext(arr2, detail=0, paragraph=True)
-        return " ".join(results2) if results2 else ""
+        text2 = " ".join(results2) if results2 else ""
+        if text2.strip():
+            return text2.strip()
+        # Third pass: region-by-region (some layouts fail paragraph mode)
+        results3 = reader.readtext(arr, detail=0, paragraph=False)
+        text3 = " ".join(results3) if results3 else ""
+        return text3.strip() if text3 else ""
 
     except Exception as e:
         log.error(f"EasyOCR processing error: {e}", exc_info=True)
@@ -287,33 +293,43 @@ def _resolve_tesseract_cmd() -> str | None:
     return shutil.which("tesseract")
 
 
+def _tesseract_multi_psm(img, lang: str = "eng+hin") -> str | None:
+    """Run Tesseract with multiple page-segmentation modes; return longest non-empty result."""
+    import pytesseract
+
+    configs = ("--psm 6", "--psm 4", "--psm 11", "--psm 3")
+    best = ""
+    for cfg in configs:
+        try:
+            raw = pytesseract.image_to_string(img, lang=lang, config=cfg)
+            t = (raw or "").strip()
+            if len(t) > len(best):
+                best = t
+        except Exception as e:
+            log.debug("tesseract %s failed: %s", cfg, e)
+    return best if best else None
+
+
 def _tesseract(image_bytes: bytes, apply_filter: bool = False):
     try:
         import pytesseract
         from PIL import Image, ImageEnhance
 
         cmd = _resolve_tesseract_cmd()
-        if cmd:
-            pytesseract.pytesseract.tesseract_cmd = cmd
+        if not cmd:
+            return None
+        pytesseract.pytesseract.tesseract_cmd = cmd
 
-        img = Image.open(io.BytesIO(image_bytes))
-        
+        # Same RGB / alpha / resize path as EasyOCR for consistent quality
+        img = _prepare_pil_image(image_bytes)
         if apply_filter:
-            # Make image larger
-            new_size = (img.width * 2, img.height * 2)
-            if hasattr(Image, 'Resampling'):
-                img = img.resize(new_size, Image.Resampling.LANCZOS)
-            else:
-                img = img.resize(new_size, Image.LANCZOS)
+            w, h = img.size
+            resample = getattr(Image, "Resampling", Image).LANCZOS
+            img = img.resize((w * 2, h * 2), resample)
+            img = img.convert("L")
+            img = ImageEnhance.Contrast(img).enhance(2.0)
 
-            # Convert to grayscale and boost contrast to make text "pop"
-            img = img.convert('L')
-            enhancer = ImageEnhance.Contrast(img)
-            img = enhancer.enhance(2.0)
-        
-        # --psm 6 tells Tesseract to treat the image as a single uniform block of text. Great for single questions.
-        text = pytesseract.image_to_string(img, lang="eng+hin", config='--psm 6')
-        return text
+        return _tesseract_multi_psm(img, lang="eng+hin")
 
     except Exception as e:
         log.error(f"Tesseract processing error: {e}")

@@ -68,11 +68,14 @@ export default function ChatPage() {
     setMessages(m => [...m, { role: 'user', text: msg }]);
     setSending(true);
     try {
-      const data = await sendChat(msg, user?.language || 'english');
+      const data = await sendChat(msg, locale);
       setMessages(m => [...m, { role: 'bot', text: formatBotText(data, t) }]);
       const pid = getProgressUserId(user);
       if (pid) recordChatTurn(pid, user);
-    } catch {
+    } catch (e) {
+      const detail =
+        e?.message?.length > 120 ? `${e.message.slice(0, 120)}…` : e?.message || t('chat_serverError');
+      setToast({ message: detail, type: 'error' });
       setMessages(m => [...m, { role: 'bot', text: t('chat_serverError') }]);
     } finally {
       setSending(false);
@@ -128,7 +131,7 @@ export default function ChatPage() {
                 {/* Listen button on bot messages */}
                 {msg.role === 'bot' && msg.text.length > 10 && (
                   <button
-                    onClick={() => speak(msg.text, user?.language)}
+                    onClick={() => speak(msg.text, locale)}
                     className="mt-1.5 ml-1 flex items-center gap-1 text-xs text-slate-400 hover:text-brand-500 transition-colors opacity-0 group-hover:opacity-100"
                   >
                     <Volume2 size={11} /> {t('chat_listen')}

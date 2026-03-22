@@ -3,13 +3,29 @@
 
 import { getApiBase } from '../lib/apiBase';
 
-async function request(path, options = {}) {
+async function request(path, options = {}, timeoutMs = 120000) {
   const BASE = getApiBase();
   const url = `${BASE}${path}`;
-  const res = await fetch(url, {
-    headers: { 'Content-Type': 'application/json', ...options.headers },
-    ...options,
-  });
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), timeoutMs);
+  let res;
+  try {
+    res = await fetch(url, {
+      headers: { 'Content-Type': 'application/json', ...options.headers },
+      ...options,
+      signal: ctrl.signal,
+    });
+  } catch (e) {
+    const msg =
+      e?.name === 'AbortError'
+        ? `Request timed out (${timeoutMs / 1000}s). The AI may be slow or the server cold-starting. ${API_HINT}`
+        : e instanceof TypeError
+          ? `Cannot reach API at ${url}. ${API_HINT} (${e.message})`
+          : String(e?.message || e);
+    throw new Error(msg);
+  } finally {
+    clearTimeout(timer);
+  }
   if (!res.ok) {
     const raw = await res.text().catch(() => '');
     let detail = `HTTP ${res.status}`;
@@ -100,18 +116,31 @@ export async function ocrImage(file) {
   }
 }
 
-// POST /solve — question + language → answer + steps
-export async function solveQuestion(question, language = 'english') {
-  return request('/solve', {
-    method: 'POST',
-    body: JSON.stringify({ question, language }),
-  });
+// POST /solve — question + language → answer + steps (longer timeout for LLM + OCR-sized prompts)
+export async function solveQuestion(question, language = 'english', opts = {}) {
+  const { fromOcr = false } = opts;
+  return request(
+    '/solve',
+    {
+      method: 'POST',
+      body: JSON.stringify({
+        question,
+        language,
+        from_ocr: Boolean(fromOcr),
+      }),
+    },
+    180000,
+  );
 }
 
 // POST /chat — message → reply
 export async function sendChat(message, language = 'english') {
-  return request('/chat', {
-    method: 'POST',
-    body: JSON.stringify({ message, language }),
-  });
+  return request(
+    '/chat',
+    {
+      method: 'POST',
+      body: JSON.stringify({ message, language }),
+    },
+    120000,
+  );
 }

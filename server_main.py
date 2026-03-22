@@ -9,8 +9,12 @@ import os
 import random
 
 try:
+    from pathlib import Path
+
     from dotenv import load_dotenv
 
+    _API_ROOT = Path(__file__).resolve().parent
+    load_dotenv(_API_ROOT / ".env")
     load_dotenv()
 except ImportError:
     pass
@@ -26,7 +30,7 @@ from ocr import (
     ocr_engines_available,
     ocr_health_info,
 )
-from server_ai import generate_answer
+from server_ai import generate_answer, llm_env_configured
 from server_cache import get_cached, set_cached
 from services.quiz_data import quiz_data
 
@@ -44,6 +48,7 @@ app.add_middleware(
 class SolveRequest(BaseModel):
     question: str
     language: str = "english"
+    from_ocr: bool = False
 
 class ChatRequest(BaseModel):
     message:  str
@@ -106,6 +111,19 @@ def check_filters(text: str) -> dict | None:
     return None
 
 
+def looks_like_ocr_text(q: str) -> bool:
+    """Long, multi-line, or noisy text — typical of camera scans; use OCR-tuned LLM prompts."""
+    raw = q.strip()
+    if len(raw) >= 100:
+        return True
+    if raw.count("\n") >= 2:
+        return True
+    noisy = sum(1 for c in raw if c in "|[]{}_^")
+    if noisy >= 2 and len(raw) >= 35:
+        return True
+    return False
+
+
 def strip_boilerplate(ans: str) -> str:
     """Remove known generic boilerplate phrases from model output."""
     for phrase in BOILERPLATE:
@@ -129,7 +147,12 @@ def root():
 @app.get("/health")
 def health():
     """Import / disk checks for OCR. Does not load EasyOCR models (safe for uptime probes)."""
-    return {"status": "ok", "app": "ShikshaSetu API v2", "ocr": ocr_health_info()}
+    return {
+        "status": "ok",
+        "app": "ShikshaSetu API v2",
+        "ocr": ocr_health_info(),
+        "llm": {"configured": llm_env_configured()},
+    }
 
 
 @app.post("/ocr")
@@ -190,12 +213,13 @@ def solve_endpoint(req: SolveRequest):
     if flt:
         return {**flt, "cached": False}
 
-    cache_key = f"{q.lower()}::{req.language}"
-    cached    = get_cached(cache_key)
+    from_ocr = bool(req.from_ocr) or looks_like_ocr_text(q)
+    cache_key = f"{q.lower()}::{req.language}::ocr{int(from_ocr)}"
+    cached = get_cached(cache_key)
     if cached:
         return {**cached, "cached": True}
 
-    result = generate_answer(q, req.language)
+    result = generate_answer(q, req.language, chat_mode=False, from_ocr=from_ocr)
     if "answer" in result:
         result["answer"] = strip_boilerplate(result["answer"])
 
@@ -214,7 +238,8 @@ def chat_endpoint(req: ChatRequest):
     if flt:
         return flt
 
-    res = generate_answer(msg, req.language, chat_mode=True)
+    from_ocr = looks_like_ocr_text(msg)
+    res = generate_answer(msg, req.language, chat_mode=True, from_ocr=from_ocr)
     if "answer" in res:
         res["answer"] = strip_boilerplate(res["answer"])
     return res

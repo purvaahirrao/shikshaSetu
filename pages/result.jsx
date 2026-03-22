@@ -158,7 +158,9 @@ export default function ResultPage() {
     addLog(`Payload: Text="${textToSolve.substring(0, 30)}...", Lang="${langToUse}"`);
 
     try {
-      const data = await solveQuestion(textToSolve, langToUse);
+      const data = await solveQuestion(textToSolve, langToUse, {
+        fromOcr: fromScanForProgress,
+      });
       addLog('✅ Solve API Response:', data);
       setResult(data);
       const pid = getProgressUserId(user);
