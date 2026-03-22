@@ -10,6 +10,11 @@ import Button from '../components/ui/Button';
 import Badge from '../components/ui/Badge';
 import Toast from '../components/ui/Toast';
 import { getProgressUserId, recordQuestionSolved } from '../services/userProgress';
+import {
+  peekOcrForResult,
+  clearOcrPayload,
+  normalizeOcrText,
+} from '../lib/scanTransfer';
 
 const LANG_PICKER = [
   { value: 'english', flag: '🇬🇧' },
@@ -51,6 +56,7 @@ export default function ResultPage() {
   const [toast, setToast] = useState(null);
   const [speaking, setSpeaking] = useState(false);
   const fromScanRef = useRef(false);
+  const resultHydratedRef = useRef(false);
 
   // --- Debug State ---
   const [logs, setLogs] = useState([]);
@@ -72,31 +78,68 @@ export default function ResultPage() {
     setLanguage(next);
   }, [uiLocale]);
 
-  // Handle incoming OCR text and trigger auto-solve
+  // OCR / URL question — sessionStorage avoids huge ?text= (browser limits, broken encoding)
   useEffect(() => {
-    if (router.isReady) {
-      addLog('URL Queries loaded:', router.query);
+    if (!router.isReady || resultHydratedRef.current) return;
 
-      if (router.query.text) {
-        setQuestion(router.query.text);
-        addLog('Question state set from URL parameter.');
+    const q = router.query;
+    const fromScan =
+      q.fromScan === '1' ||
+      q.fromScan === 'true' ||
+      String(q.fromScan || '') === '1';
 
-        if (router.query.autoSolve === 'true') {
-          fromScanRef.current = true;
-        }
+    addLog('URL query:', q);
 
-        // Auto-solve if it came directly from the scan page
-        if (router.query.autoSolve === 'true') {
-          addLog('autoSolve is true, triggering solve()...');
-          const langForSolve =
-            uiLocale === 'hindi' ? 'hindi' : uiLocale === 'marathi' ? 'marathi' : 'english';
-          solve(router.query.text, langForSolve);
-          // Clean up the URL so it doesn't auto-solve again if the user refreshes
-          router.replace('/result', undefined, { shallow: true });
-        }
-      } else {
-        addLog('No text found in URL parameters.');
+    let rawText = null;
+    if (fromScan) {
+      rawText = peekOcrForResult();
+      if (!rawText) {
+        addLog('fromScan=1 but no session text (storage blocked or expired).');
+        setToast({ message: t('result_toastScanLost'), type: 'error' });
+        resultHydratedRef.current = true;
+        router.replace({ pathname: '/result' }, undefined, { shallow: true });
+        return;
       }
+      addLog('Loaded question from scan session.');
+    } else if (q.text) {
+      rawText = Array.isArray(q.text) ? q.text.join('\n') : q.text;
+      addLog('Loaded question from URL (legacy).');
+    }
+
+    if (!rawText) {
+      addLog('No initial question text.');
+      resultHydratedRef.current = true;
+      return;
+    }
+
+    const cleaned = normalizeOcrText(rawText);
+    if (!cleaned) {
+      resultHydratedRef.current = true;
+      return;
+    }
+
+    resultHydratedRef.current = true;
+    setQuestion(cleaned);
+
+    const wantAuto =
+      fromScan ||
+      q.autoSolve === 'true' ||
+      String(q.autoSolve || '') === 'true';
+
+    if (wantAuto) {
+      fromScanRef.current = fromScan;
+      const langForSolve =
+        uiLocale === 'hindi'
+          ? 'hindi'
+          : uiLocale === 'marathi'
+            ? 'marathi'
+            : 'english';
+      addLog('Auto-solving…', { lang: langForSolve, chars: cleaned.length });
+      solve(cleaned, langForSolve);
+    }
+
+    if (fromScan || q.text || wantAuto) {
+      router.replace({ pathname: '/result' }, undefined, { shallow: true });
     }
   }, [router.isReady, router.query, uiLocale]);
 
@@ -105,6 +148,9 @@ export default function ResultPage() {
       setToast({ message: t('result_toastEmpty'), type: 'error' });
       return;
     }
+
+    const wipeOcrSession = fromScanRef.current;
+    const fromScanForProgress = fromScanRef.current;
 
     setSolving(true);
     setResult(null);
@@ -117,23 +163,31 @@ export default function ResultPage() {
       setResult(data);
       const pid = getProgressUserId(user);
       if (pid) {
-        const fromScan = fromScanRef.current;
-        fromScanRef.current = false;
         recordQuestionSolved(
           pid,
           {
             subject: data.subject || 'general',
             questionText: textToSolve,
-            fromScan,
+            fromScan: fromScanForProgress,
           },
           user,
         );
       }
     } catch (e) {
       addLog('❌ Solve API Catch Error:', e.message);
-      setToast({ message: t('result_toastServer'), type: 'error' });
+      setToast({
+        message:
+          e?.message?.length > 120
+            ? `${e.message.slice(0, 120)}…`
+            : e?.message || t('result_toastServer'),
+        type: 'error',
+      });
     } finally {
       setSolving(false);
+      if (wipeOcrSession) {
+        clearOcrPayload();
+        fromScanRef.current = false;
+      }
     }
   };
 

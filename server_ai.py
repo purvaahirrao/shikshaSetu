@@ -1,7 +1,14 @@
 """
-ai.py — Answer generation with subject detection + mock knowledge base.
-Swap _mock_generate() with a real LLM call (Claude, Gemini, GPT) at any time.
+server_ai.py — Answer generation: OpenAI (if OPENAI_API_KEY) else mock KB + generic fallback.
 """
+
+from __future__ import annotations
+
+import json
+import logging
+import os
+
+log = logging.getLogger(__name__)
 
 # ── Language UI labels ────────────────────────────────────────────────────────
 
@@ -188,19 +195,147 @@ def _generic(question: str, subject: str) -> dict:
     }
 
 
-def generate_answer(question: str, language: str = "english", chat_mode: bool = False) -> dict:
-    lang    = language.lower() if language.lower() in LABELS else "english"
-    subject = _detect_subject(question)
-    data    = _lookup(subject, question) or _generic(question, subject)
+def _openai_solve(question: str, lang: str, chat_mode: bool) -> dict | None:
+    """
+    Chat Completions via the OpenAI Python SDK (OpenAI, Grok/xAI, and other OpenAI-compatible APIs).
 
-    # Prefix for non-English to signal language context
+    Keys (first non-empty wins): OPENAI_API_KEY, XAI_API_KEY, GROK_API_KEY, SHIKSHA_OPENAI_API_KEY
+    Base URL (optional): OPENAI_BASE_URL or XAI_BASE_URL — e.g. https://api.x.ai/v1 for Grok
+    Model: OPENAI_MODEL — e.g. gpt-4o-mini (OpenAI) or grok-2-latest (xAI; check current docs)
+    """
+    api_key = (
+        os.environ.get("OPENAI_API_KEY")
+        or os.environ.get("XAI_API_KEY")
+        or os.environ.get("GROK_API_KEY")
+        or os.environ.get("SHIKSHA_OPENAI_API_KEY")
+        or ""
+    ).strip()
+    if not api_key:
+        return None
+
+    try:
+        from openai import OpenAI
+    except ImportError:
+        log.warning("openai package not installed; skipping LLM solve")
+        return None
+
+    base_url = (os.environ.get("OPENAI_BASE_URL") or os.environ.get("XAI_BASE_URL") or "").strip()
+    if not base_url and (
+        os.environ.get("XAI_API_KEY") or os.environ.get("GROK_API_KEY")
+    ):
+        base_url = "https://api.x.ai/v1"
+    default_model = "grok-2-latest" if "x.ai" in base_url.lower() else "gpt-4o-mini"
+    model = (os.environ.get("OPENAI_MODEL") or default_model).strip()
+    lang_key = lang if lang in LABELS else "english"
+    lang_names = {"english": "English", "hindi": "Hindi (Devanagari script)", "marathi": "Marathi"}
+    lang_name = lang_names.get(lang_key, "English")
+
+    schema_hint = (
+        '{"answer":"string","steps":["string",...],"tip":"string","subject":"math|science|english|social_science|general"}'
+    )
+    if chat_mode:
+        system = (
+            f"You are a warm tutor for school students (grades 1–10). Reply entirely in {lang_name}. "
+            "Be concise. Return ONLY valid JSON (no markdown): "
+            '{"answer":"...","steps":["short point 1","short point 2"],"tip":"one line or empty"}'
+        )
+    else:
+        system = (
+            f"You are a careful tutor for grades 1–10. The question may come from a camera/OCR scan (noise, line breaks, typos). "
+            f"Write every field in {lang_name}. Answer THIS exact question only—no template paragraphs, no 'identify key information' filler. "
+            "Return ONLY valid JSON (no markdown) with shape: "
+            f"{schema_hint}. "
+            "Use 3–6 concrete steps for non-trivial questions. Pick the closest subject label."
+        )
+
+    client_kw: dict = {"api_key": api_key}
+    if base_url:
+        client_kw["base_url"] = base_url.rstrip("/")
+    client = OpenAI(**client_kw)
+    try:
+        kwargs = {
+            "model": model,
+            "messages": [
+                {"role": "system", "content": system},
+                {"role": "user", "content": question.strip()[:12000]},
+            ],
+            "temperature": 0.35,
+            "max_tokens": 1400,
+        }
+        try:
+            kwargs["response_format"] = {"type": "json_object"}
+            resp = client.chat.completions.create(**kwargs)
+        except Exception as e1:
+            log.info("OpenAI json_object mode failed (%s), retrying without it", e1)
+            kwargs.pop("response_format", None)
+            resp = client.chat.completions.create(**kwargs)
+
+        raw = (resp.choices[0].message.content or "").strip()
+        if not raw:
+            return None
+        # Strip ```json fences if the model added them
+        if raw.startswith("```"):
+            raw = raw.removeprefix("```json").removeprefix("```").strip()
+            if raw.endswith("```"):
+                raw = raw[: raw.rfind("```")].strip()
+
+        try:
+            data = json.loads(raw)
+        except json.JSONDecodeError:
+            lo, hi = raw.find("{"), raw.rfind("}")
+            if lo >= 0 and hi > lo:
+                data = json.loads(raw[lo : hi + 1])
+            else:
+                raise
+    except Exception as e:
+        log.warning("OpenAI solve failed: %s", e, exc_info=True)
+        return None
+
+    answer = str(data.get("answer", "")).strip()
+    if not answer:
+        return None
+
+    steps_raw = data.get("steps")
+    if isinstance(steps_raw, str):
+        steps = [s.strip() for s in steps_raw.replace("•", "\n").split("\n") if s.strip()]
+    elif isinstance(steps_raw, list):
+        steps = [str(s).strip() for s in steps_raw if str(s).strip()]
+    else:
+        steps = []
+    if not steps:
+        steps = ["—"]
+
+    tip = str(data.get("tip", "") or "").strip()
+    subj = str(data.get("subject", "") or "").lower().strip()
+    if subj not in ("math", "science", "english", "social_science", "general"):
+        subj = _detect_subject(question)
+
+    return {
+        "answer": answer,
+        "steps": steps,
+        "tip": tip,
+        "subject": subj,
+        "language": lang_key,
+        "labels": LABELS[lang_key],
+    }
+
+
+def generate_answer(question: str, language: str = "english", chat_mode: bool = False) -> dict:
+    lang = language.lower() if language.lower() in LABELS else "english"
+
+    llm = _openai_solve(question.strip(), lang, chat_mode)
+    if llm:
+        return llm
+
+    subject = _detect_subject(question)
+    data = _lookup(subject, question) or _generic(question, subject)
     prefix = {"hindi": "[हिंदी] ", "marathi": "[मराठी] "}.get(lang, "")
 
     return {
-        "answer":  prefix + data["answer"],
-        "steps":   data["steps"],
-        "tip":     data.get("tip", ""),
+        "answer": prefix + data["answer"],
+        "steps": data["steps"],
+        "tip": data.get("tip", ""),
         "subject": subject,
         "language": lang,
-        "labels":  LABELS[lang],
+        "labels": LABELS[lang],
     }

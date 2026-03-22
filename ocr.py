@@ -219,22 +219,53 @@ def _extract_text_impl(image_bytes: bytes) -> str:
 
 # ── EasyOCR ───────────────────────────────────────────────────────────────────
 
+def _prepare_pil_image(image_bytes: bytes):
+    """RGB, downscale very large photos (speed + memory), handle alpha."""
+    from PIL import Image
+
+    img = Image.open(io.BytesIO(image_bytes))
+    if img.mode in ("RGBA", "P", "LA"):
+        rgba = img.convert("RGBA")
+        bg = Image.new("RGB", rgba.size, (255, 255, 255))
+        bg.paste(rgba, mask=rgba.split()[-1])
+        img = bg
+    else:
+        img = img.convert("RGB")
+
+    w, h = img.size
+    max_side = 1600
+    if max(w, h) > max_side:
+        scale = max_side / float(max(w, h))
+        nw, nh = int(w * scale), int(h * scale)
+        resample = getattr(Image, "Resampling", Image).LANCZOS
+        img = img.resize((nw, nh), resample)
+    return img
+
+
 def _easyocr(image_bytes: bytes):
     try:
         import numpy as np
-        from PIL import Image
-        
+        from PIL import Image, ImageEnhance
+
         reader = get_easyocr_reader()
         if reader is None:
             return None
 
-        # Open image and let EasyOCR see natural colors
-        img = Image.open(io.BytesIO(image_bytes))
-        arr = np.array(img.convert('RGB'))
-        
-        # Read text
+        img = _prepare_pil_image(image_bytes)
+        arr = np.array(img)
         results = reader.readtext(arr, detail=0, paragraph=True)
-        return " ".join(results)
+        text = " ".join(results) if results else ""
+        text = (text or "").strip()
+
+        if text:
+            return text
+
+        # Second pass: higher contrast grayscale (helps faint scans)
+        gray = Image.fromarray(arr).convert("L")
+        gray = ImageEnhance.Contrast(gray).enhance(1.8)
+        arr2 = np.array(gray.convert("RGB"))
+        results2 = reader.readtext(arr2, detail=0, paragraph=True)
+        return " ".join(results2) if results2 else ""
 
     except Exception as e:
         log.error(f"EasyOCR processing error: {e}", exc_info=True)

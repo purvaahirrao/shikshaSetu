@@ -6,6 +6,7 @@ import { useAuth } from '../hooks/useAuth';
 import { useI18n } from '../hooks/useI18n';
 import { ocrImage } from '../services/api';
 import { getApiBase } from '../lib/apiBase';
+import { normalizeOcrText, storeOcrForResult } from '../lib/scanTransfer';
 import AppShell from '../components/layout/AppShell';
 import Button from '../components/ui/Button';
 import Spinner from '../components/ui/Spinner';
@@ -89,18 +90,32 @@ export default function ScanPage() {
       const data = await ocrImage(file);
       addLog('Backend response received:', data);
 
-      const extracted = data.extracted_text || data.text || '';
+      const extracted = normalizeOcrText(
+        data.extracted_text || data.text || '',
+      );
       addLog(`Extracted Text Length: ${extracted.length} chars`);
 
-      if (!extracted.trim()) {
+      if (!extracted) {
         addLog('Warning: Extracted text is empty!');
         setToast({ message: t('scan_toastNoText'), type: 'error' });
         setScanning(false);
         return; // Don't redirect if empty
       }
 
-      addLog('Redirecting to /result...');
-      router.push({ pathname: '/result', query: { text: extracted, autoSolve: 'true' } });
+      if (!storeOcrForResult(extracted)) {
+        addLog('Warning: sessionStorage failed, falling back to short URL (may truncate long text)');
+        router.push({
+          pathname: '/result',
+          query: {
+            text: extracted.slice(0, 1500),
+            autoSolve: 'true',
+          },
+        });
+        return;
+      }
+
+      addLog('Redirecting to /result (session transfer)…');
+      router.push({ pathname: '/result', query: { fromScan: '1' } });
     } catch (e) {
       const msg = e?.message || String(e);
       addLog('API Error:', msg);

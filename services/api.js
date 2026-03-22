@@ -5,13 +5,28 @@ import { getApiBase } from '../lib/apiBase';
 
 async function request(path, options = {}) {
   const BASE = getApiBase();
-  const res = await fetch(`${BASE}${path}`, {
+  const url = `${BASE}${path}`;
+  const res = await fetch(url, {
     headers: { 'Content-Type': 'application/json', ...options.headers },
     ...options,
   });
   if (!res.ok) {
-    const err = await res.json().catch(() => ({}));
-    throw new Error(err.detail || `API error ${res.status}`);
+    const raw = await res.text().catch(() => '');
+    let detail = `HTTP ${res.status}`;
+    try {
+      const err = raw ? JSON.parse(raw) : null;
+      const d = err?.detail;
+      if (typeof d === 'string' && d.trim()) detail = d.trim();
+      else if (Array.isArray(d)) {
+        detail = d
+          .map((x) => (x && typeof x === 'object' && x.msg) || String(x))
+          .filter(Boolean)
+          .join('; ');
+      } else if (raw && raw.trim()) detail = `${detail}: ${raw.slice(0, 240)}`;
+    } catch {
+      if (raw && raw.trim()) detail = `${detail}: ${raw.slice(0, 240)}`;
+    }
+    throw new Error(`${detail} — ${url}`);
   }
   return res.json();
 }

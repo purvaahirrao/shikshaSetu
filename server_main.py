@@ -71,8 +71,10 @@ def check_filters(text: str) -> dict | None:
     """
     Return a short-circuit response dict when the input is a greeting or
     doesn't look like a school question.  Return None to allow normal processing.
+    Long or non-Latin text is treated as OCR / pasted homework — do not block.
     """
-    t = text.strip().lower()
+    raw = text.strip()
+    t = raw.lower()
 
     if t in GREETINGS:
         return {
@@ -83,6 +85,13 @@ def check_filters(text: str) -> dict | None:
             "steps": [],
             "tip": "",
         }
+
+    if len(raw) >= 72:
+        return None
+    if len(raw) >= 24 and any(ord(c) > 127 for c in raw):
+        return None
+    if raw.count("\n") >= 2 and len(raw) >= 40:
+        return None
 
     has_math = any(c in t for c in "0123456789+-=/*%^")
     has_q    = any(w in t for w in QUESTION_WORDS)
