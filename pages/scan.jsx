@@ -5,6 +5,7 @@ import { Upload, Camera, X, ArrowRight, Bug } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
 import { useI18n } from '../hooks/useI18n';
 import { ocrImage } from '../services/api';
+import { getApiBase } from '../lib/apiBase';
 import AppShell from '../components/layout/AppShell';
 import Button from '../components/ui/Button';
 import Spinner from '../components/ui/Spinner';
@@ -15,6 +16,7 @@ export default function ScanPage() {
   const { t } = useI18n();
   const router = useRouter();
   const fileRef = useRef();
+  const apiConfigWarned = useRef(false);
 
   const [preview, setPreview] = useState(null);
   const [file, setFile] = useState(null);
@@ -34,6 +36,19 @@ export default function ScanPage() {
   useEffect(() => {
     if (!loading && !user) router.replace('/');
   }, [user, loading]);
+
+  useEffect(() => {
+    if (apiConfigWarned.current) return;
+    if (typeof window === 'undefined') return;
+    const h = window.location.hostname;
+    const local = h === 'localhost' || h === '127.0.0.1';
+    if (local) return;
+    if (process.env.NEXT_PUBLIC_API_URL) return;
+    apiConfigWarned.current = true;
+    addLog(
+      '⚠ Deployed: NEXT_PUBLIC_API_URL not set — requests go to /shiksha-api on this host. Set NEXT_PUBLIC_API_URL=https://YOUR-PYTHON-API or API_ORIGIN on Next so rewrites hit your FastAPI service.',
+    );
+  }, []);
 
   const handleFile = (f) => {
     addLog('File selected manually', f?.name);
@@ -66,7 +81,8 @@ export default function ScanPage() {
     }
 
     setScanning(true);
-    addLog('--- STARTING OCR SCAN ---');
+    addLog('--- STARTING OCR SCAN v2 ---');
+    addLog(`OCR POST URL: ${getApiBase()}/ocr`);
     addLog(`Sending file: ${file.name} (${Math.round(file.size / 1024)} KB)`);
 
     try {
@@ -86,8 +102,11 @@ export default function ScanPage() {
       addLog('Redirecting to /result...');
       router.push({ pathname: '/result', query: { text: extracted, autoSolve: 'true' } });
     } catch (e) {
-      addLog('API Error:', e.message);
-      setToast({ message: t('scan_toastOcrFail'), type: 'error' });
+      const msg = e?.message || String(e);
+      addLog('API Error:', msg);
+      const short =
+        msg.length > 220 ? `${msg.slice(0, 220)}… (see debug log)` : msg;
+      setToast({ message: short || t('scan_toastOcrFail'), type: 'error' });
     } finally {
       setScanning(false);
     }

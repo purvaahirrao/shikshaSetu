@@ -120,7 +120,13 @@ async def ocr_endpoint(image: UploadFile = File(...)):
     data = await image.read()
     if not data:
         raise HTTPException(status_code=400, detail="Uploaded file is empty.")
-    text = extract_text(data)
+    try:
+        text = extract_text(data)
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"OCR processing error: {e!s}",
+        ) from e
     return {"extracted_text": text.strip()}
 
 

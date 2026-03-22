@@ -1,3 +1,5 @@
+# Use Python 3.10–3.12 on the server. Python 3.14 has no Pillow/torch wheels yet → broken source builds.
+# Render: set env PYTHON_VERSION=3.12.8, or keep runtime.txt + nixpacks.toml at the service Root Directory.
 fastapi==0.111.0
 uvicorn[standard]==0.29.0
 python-multipart==0.0.9

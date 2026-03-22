@@ -5,8 +5,12 @@ Fallback: Tesseract via pytesseract
 LLM:      llama-cpp-python (Direct GGUF loading)
 """
 
+from __future__ import annotations
+
 import io
 import logging
+import platform
+import shutil
 
 # Set up logger
 log = logging.getLogger(__name__)
@@ -184,13 +188,28 @@ def _easyocr(image_bytes: bytes):
 
 # ── Tesseract ─────────────────────────────────────────────────────────────────
 
+def _resolve_tesseract_cmd() -> str | None:
+    """Windows: default install path. macOS/Linux: PATH (brew install tesseract)."""
+    if platform.system() == "Windows":
+        win = r"C:\Program Files\Tesseract-OCR\tesseract.exe"
+        try:
+            import os
+
+            if os.path.isfile(win):
+                return win
+        except OSError:
+            pass
+    return shutil.which("tesseract")
+
+
 def _tesseract(image_bytes: bytes, apply_filter: bool = False):
     try:
         import pytesseract
         from PIL import Image, ImageEnhance
-        
-        # ⚠️ IMPORTANT FOR WINDOWS: If Tesseract fails, make sure this path is exactly where you installed it!
-        pytesseract.pytesseract.tesseract_cmd = r'C:\Program Files\Tesseract-OCR\tesseract.exe'
+
+        cmd = _resolve_tesseract_cmd()
+        if cmd:
+            pytesseract.pytesseract.tesseract_cmd = cmd
 
         img = Image.open(io.BytesIO(image_bytes))
         
