@@ -7,4 +7,5 @@ python-multipart==0.0.9
 Pillow>=10.4.0,<12
 numpy==1.26.4
 easyocr==1.7.1
-# pytesseract==0.3.10   # uncomment if Tesseract binary is installed
+# Optional fallback when `tesseract` binary exists on the server (e.g. apt install tesseract-ocr)
+pytesseract==0.3.10

@@ -135,9 +135,62 @@ Question:
         log.error(f"Unexpected error generating answer: {e}")
         return "Error: Unexpected error occurred while generating the answer."
 
+def pytesseract_usable() -> bool:
+    try:
+        import pytesseract  # noqa: F401
+    except ImportError:
+        return False
+    return _resolve_tesseract_cmd() is not None
+
+
+def ocr_engines_available() -> bool:
+    """True if at least one OCR backend can run (EasyOCR reader or Tesseract binary + pytesseract)."""
+    if get_easyocr_reader() is not None:
+        return True
+    return pytesseract_usable()
+
+
+def ocr_health_info() -> dict:
+    """Lightweight checks (does not load EasyOCR models — safe for /health pings)."""
+    h: dict = {}
+    try:
+        import easyocr  # noqa: F401
+
+        h["easyocr_import"] = True
+    except Exception as e:
+        h["easyocr_import"] = False
+        h["easyocr_import_error"] = str(e)[:400]
+    try:
+        import torch
+
+        h["torch_version"] = torch.__version__
+    except Exception as e:
+        h["torch_version"] = None
+        h["torch_error"] = str(e)[:200]
+    h["tesseract_binary"] = _resolve_tesseract_cmd()
+    try:
+        import pytesseract  # noqa: F401
+
+        h["pytesseract_installed"] = True
+    except ImportError:
+        h["pytesseract_installed"] = False
+    h["note"] = (
+        "EasyOCR loads models on first /ocr call; Render free tier often OOMs. "
+        "Install Tesseract on the server or use a larger instance / run API locally."
+    )
+    return h
+
+
 def extract_text(image_bytes: bytes) -> str:
     log.info("--- Starting Text Extraction Pipeline ---")
-    
+    try:
+        return _extract_text_impl(image_bytes)
+    except Exception as e:
+        log.exception("extract_text crashed: %s", e)
+        return ""
+
+
+def _extract_text_impl(image_bytes: bytes) -> str:
     # Attempt 1: EasyOCR
     text = _easyocr(image_bytes)
     if text and text.strip():
@@ -162,6 +215,7 @@ def extract_text(image_bytes: bytes) -> str:
 
     log.warning("All OCR attempts failed to find text in this image.")
     return ""
+
 
 # ── EasyOCR ───────────────────────────────────────────────────────────────────
 

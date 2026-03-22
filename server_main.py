@@ -20,7 +20,12 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 import uvicorn
 
-from ocr import extract_text, generate_answer as local_generate_answer
+from ocr import (
+    extract_text,
+    generate_answer as local_generate_answer,
+    ocr_engines_available,
+    ocr_health_info,
+)
 from server_ai import generate_answer
 from server_cache import get_cached, set_cached
 from services.quiz_data import quiz_data
@@ -112,6 +117,12 @@ def root():
     return {"status": "ok", "app": "ShikshaSetu API v2"}
 
 
+@app.get("/health")
+def health():
+    """Import / disk checks for OCR. Does not load EasyOCR models (safe for uptime probes)."""
+    return {"status": "ok", "app": "ShikshaSetu API v2", "ocr": ocr_health_info()}
+
+
 @app.post("/ocr")
 async def ocr_endpoint(image: UploadFile = File(...)):
     """Extract text from an uploaded image using EasyOCR (Tesseract fallback)."""
@@ -127,6 +138,17 @@ async def ocr_endpoint(image: UploadFile = File(...)):
             status_code=500,
             detail=f"OCR processing error: {e!s}",
         ) from e
+
+    if not text.strip() and not ocr_engines_available():
+        raise HTTPException(
+            status_code=503,
+            detail=(
+                "OCR is not available on this server: EasyOCR did not initialize (common: out-of-memory on free/small "
+                "hosts) and Tesseract is not available. Options: upgrade instance RAM, install Tesseract + pytesseract "
+                "on the API host, or run the API locally (`npm run dev:all`). See GET /health for import diagnostics."
+            ),
+        )
+
     return {"extracted_text": text.strip()}
 
 
